@@ -15,8 +15,11 @@ import toast from "react-hot-toast";
 // ⭐ import dummy avatar
 import defaultAvatar from "../../assets/default-avatar.png";
 
-// ⭐ optional: base URL if your backend returns relative paths like "/uploads/xyz.png"
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
+// ⭐ use shared API helper base URL
+import { api } from "../../api";
+
+// ⭐ base URL for images / relative paths
+const API_BASE_URL = api.baseUrl || "";
 
 // ⭐ helper to always return a safe image URL
 const getProfileImageUrl = (raw) => {
@@ -58,7 +61,7 @@ const ProfileEdit = () => {
     try {
       setSaving(true);
 
-      // 🔎 filter out empty-string values so optional fields (like password) are not sent if left blank
+      // filter out empty-string values
       const filteredValues = {};
       Object.entries(formValues || {}).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== "") {
@@ -66,25 +69,34 @@ const ProfileEdit = () => {
         }
       });
 
+      const token = localStorage.getItem("accessToken");
+
       if (file) {
+        // ---------- with image (FormData) ----------
         const formData = new FormData();
         Object.entries(filteredValues).forEach(([k, v]) => {
           formData.append(k, v);
         });
         formData.append("image", file);
 
-        // optimistic redux update (optional)
+        // optimistic redux update
         try {
           dispatch(editUserProfile({ ...(filteredValues || {}) }));
         } catch (e) {
           console.warn("editUserProfile dispatch error (optimistic):", e);
         }
 
-        const res = await fetch(`/api/user/editUserProfile/${id}`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
+        const res = await fetch(
+          `${API_BASE_URL}/api/user/editUserProfile/${id}`,
+          {
+            method: "POST",
+            body: formData,
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            credentials: "include",
+          }
+        );
 
         if (!res.ok) {
           const text = await res.text();
@@ -99,25 +111,17 @@ const ProfileEdit = () => {
         toast.success("Profile updated successfully");
         return { success: true, payload: data };
       } else {
+        // ---------- no image (JSON) ----------
         const payload = { ...filteredValues };
 
         dispatch(editUserProfile({ ...payload }));
 
-        const res = await fetch(`/api/user/editUserProfile/${id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ formData: payload }),
-          credentials: "include",
-        });
+        // use api helper (adds Authorization + credentials)
+        const data = await api.post(
+          `/api/user/editUserProfile/${id}`,
+          { formData: payload } // matches your backend shape
+        );
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Update failed");
-        }
-
-        const data = await res.json();
         const returnedUser = data?.currentUser || data || null;
         if (returnedUser) {
           dispatch(signInSuccess(returnedUser));
@@ -137,7 +141,6 @@ const ProfileEdit = () => {
   };
 
   const onSubmit = async (data) => {
-    // 🧠 simple password validation on the frontend
     const { currentPassword, newPassword, confirmNewPassword } = data;
 
     const isTryingToChangePassword =
@@ -162,7 +165,6 @@ const ProfileEdit = () => {
     if (result?.success) {
       setFile(null);
       setPreview(null);
-      // reset only password-related fields so they don't persist
       reset({
         currentPassword: "",
         newPassword: "",
@@ -177,7 +179,6 @@ const ProfileEdit = () => {
       setIsModalOpen(false);
       setFile(null);
       setPreview(null);
-      // clear only password fields
       reset({
         currentPassword: "",
         newPassword: "",
@@ -233,7 +234,7 @@ const ProfileEdit = () => {
             </div>
 
             <div className="flex flex-col gap-5 my-6">
-              {/* ⭐ Image picker + preview with safe URL */}
+              {/* Image picker + preview */}
               <div className="flex items-center gap-4">
                 <div className="h-[84px] w-[84px] rounded-full border border-gray-200 shadow-sm overflow-hidden bg-gray-50">
                   <img
@@ -298,7 +299,7 @@ const ProfileEdit = () => {
                 className="w-full"
               />
 
-              {/* 🔐 Change Password section */}
+              {/* Change Password section */}
               <div className="mt-4 border-t border-gray-200 pt-4">
                 <h3 className="text-sm font-semibold text-[#111827] mb-3">
                   Change Password (optional)
