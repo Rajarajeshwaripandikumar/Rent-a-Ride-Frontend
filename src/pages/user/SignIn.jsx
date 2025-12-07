@@ -26,10 +26,18 @@ const schema = z.object({
   password: z.string().min(1, { message: "password required" }),
 });
 
+/**
+ * Backend base URL:
+ * - DEV  -> http://localhost:5000  (your Node backend)
+ * - PROD -> VITE_PRODUCTION_BACKEND_URL from Netlify env
+ *           or fallback to Render URL
+ */
 const API_BASE_URL =
   import.meta.env.MODE === "development"
-    ? ""
-    : import.meta.env.VITE_PRODUCTION_BACKEND_URL;
+    ? "http://localhost:5000"
+    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
+        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
+      "https://rent-a-ride-backend-c2km.onrender.com";
 
 function SignIn() {
   const {
@@ -54,11 +62,11 @@ function SignIn() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        credentials: "include",
       });
 
       const data = await res.json().catch(() => null);
 
-      // Accept both `success` and common misspelling `succes` from backend
       const failed =
         !res.ok || !data || data.success === false || data.succes === false;
 
@@ -69,7 +77,7 @@ function SignIn() {
         return;
       }
 
-      // 🔒 NEW: block admin/vendor login on NORMAL SignIn page
+      // block admin/vendor login on normal SignIn page
       if (data.isAdmin || data.isVendor) {
         const msg = "Admins must sign in using the Admin Sign In page.";
         dispatch(signInFailure({ message: msg }));
@@ -78,7 +86,6 @@ function SignIn() {
         return;
       }
 
-      // Save tokens if present
       if (data?.accessToken)
         localStorage.setItem("accessToken", data.accessToken);
       if (data?.refreshToken)
@@ -87,11 +94,9 @@ function SignIn() {
       dispatch(signInSuccess(data));
       dispatch(loadingEnd());
 
-      // Redirect based on role flags from backend
       if (data.isUser) {
         navigate("/");
       } else {
-        // unknown role (not admin/vendor, not user)
         const msg = "Unknown user role";
         dispatch(signInFailure({ message: msg }));
         toast.error(msg);
@@ -111,7 +116,9 @@ function SignIn() {
           <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-[#EEF2FF] border-b border-gray-200">
-              <h1 className={`${styles.heading2} text-lg font-semibold text-gray-900`}>
+              <h1
+                className={`${styles.heading2} text-lg font-semibold text-gray-900`}
+              >
                 Sign in to your account
               </h1>
               <Link to="/" onClick={() => dispatch(loadingEnd())}>
@@ -125,7 +132,10 @@ function SignIn() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-4">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="px-6 py-6 space-y-4"
+            >
               <div>
                 <TextField
                   id="email"
@@ -151,7 +161,6 @@ function SignIn() {
                 />
               </div>
 
-              {/* Forgot Password Link (aligned right, small) */}
               <div className="flex justify-end -mt-1">
                 <button
                   type="button"
@@ -178,17 +187,18 @@ function SignIn() {
                 </p>
               )}
 
-              {/* Divider */}
               <div className="flex items-center gap-3 pt-4">
                 <span className="h-px flex-1 bg-gray-200" />
                 <span className="text-[12px] text-gray-500">OR</span>
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
 
-              {/* Footer text */}
               <p className="text-center text-sm text-gray-600 pt-4 pb-2">
                 Don&apos;t have an account?{" "}
-                <Link to="/signup" className="text-blue-600 font-medium hover:underline">
+                <Link
+                  to="/signup"
+                  className="text-blue-600 font-medium hover:underline"
+                >
                   Sign up
                 </Link>
               </p>
