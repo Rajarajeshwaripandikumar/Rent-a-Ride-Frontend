@@ -19,6 +19,19 @@ const schema = z.object({
   password: z.string().min(4, { message: "minimum 4 characters required" }),
 });
 
+/**
+ * Backend base URL:
+ * - DEV  -> http://localhost:5000
+ * - PROD -> VITE_PRODUCTION_BACKEND_URL (Netlify env)
+ *           or fallback to Render URL
+ */
+const API_BASE_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
+        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
+      "https://rent-a-ride-backend-c2km.onrender.com";
+
 function SignUp() {
   const {
     register,
@@ -32,15 +45,17 @@ function SignUp() {
   const onSubmit = async (formData) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        credentials: "include",
       });
+
       const data = await res.json().catch(() => null);
       setLoading(false);
 
-      if (!res.ok || data?.succes === false) {
+      if (!res.ok || data?.succes === false || data?.success === false) {
         toast.error(data?.message || "Signup failed");
         return;
       }
@@ -77,7 +92,10 @@ function SignUp() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-4">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="px-6 py-6 space-y-4"
+            >
               <div>
                 <TextField
                   id="username"
