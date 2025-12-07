@@ -1,0 +1,382 @@
+// src/pages/user/ProfileEdit.jsx
+import { useState } from "react";
+import Modal from "../../components/CustomModal";
+import { TbEditCircle } from "react-icons/tb";
+import TextField from "@mui/material/TextField";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  editUserProfile,
+  setUpdated,
+  signInSuccess,
+} from "../../redux/user/userSlice";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+
+// ⭐ import dummy avatar
+import defaultAvatar from "../../assets/default-avatar.png";
+
+// ⭐ optional: base URL if your backend returns relative paths like "/uploads/xyz.png"
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
+
+// ⭐ helper to always return a safe image URL
+const getProfileImageUrl = (raw) => {
+  if (!raw) return defaultAvatar; // nothing in DB → dummy avatar
+  if (raw.startsWith("http")) return raw; // already full URL
+  // relative path from backend → prefix with API base
+  return `${API_BASE_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
+};
+
+const ProfileEdit = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { username, email, phoneNumber, adress, _id, profilePicture } =
+    useSelector((state) => state.user.currentUser || {});
+
+  const dispatch = useDispatch();
+  const { register, handleSubmit, reset } = useForm();
+
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+
+    if (!f.type.startsWith("image/")) {
+      toast.error("Please select an image file (png / jpg).");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5MB.");
+      return;
+    }
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const editProfileData = async (formValues, id) => {
+    try {
+      setSaving(true);
+
+      // 🔎 filter out empty-string values so optional fields (like password) are not sent if left blank
+      const filteredValues = {};
+      Object.entries(formValues || {}).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") {
+          filteredValues[k] = v;
+        }
+      });
+
+      if (file) {
+        const formData = new FormData();
+        Object.entries(filteredValues).forEach(([k, v]) => {
+          formData.append(k, v);
+        });
+        formData.append("image", file);
+
+        // optimistic redux update (optional)
+        try {
+          dispatch(editUserProfile({ ...(filteredValues || {}) }));
+        } catch (e) {
+          console.warn("editUserProfile dispatch error (optimistic):", e);
+        }
+
+        const res = await fetch(`/api/user/editUserProfile/${id}`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Update failed");
+        }
+
+        const data = await res.json();
+        const returnedUser = data?.currentUser || data || {};
+        dispatch(signInSuccess(returnedUser));
+
+        dispatch(setUpdated(true));
+        toast.success("Profile updated successfully");
+        return { success: true, payload: data };
+      } else {
+        const payload = { ...filteredValues };
+
+        dispatch(editUserProfile({ ...payload }));
+
+        const res = await fetch(`/api/user/editUserProfile/${id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ formData: payload }),
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Update failed");
+        }
+
+        const data = await res.json();
+        const returnedUser = data?.currentUser || data || null;
+        if (returnedUser) {
+          dispatch(signInSuccess(returnedUser));
+        }
+
+        dispatch(setUpdated(true));
+        toast.success("Profile updated successfully");
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Profile update error:", error);
+      toast.error(error?.message || "Failed to update profile");
+      return { success: false, error };
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    // 🧠 simple password validation on the frontend
+    const { currentPassword, newPassword, confirmNewPassword } = data;
+
+    const isTryingToChangePassword =
+      currentPassword || newPassword || confirmNewPassword;
+
+    if (isTryingToChangePassword) {
+      if (!currentPassword || !newPassword || !confirmNewPassword) {
+        toast.error("Please fill all password fields to change password.");
+        return;
+      }
+      if (newPassword.length < 6) {
+        toast.error("New password should be at least 6 characters.");
+        return;
+      }
+      if (newPassword !== confirmNewPassword) {
+        toast.error("New passwords do not match.");
+        return;
+      }
+    }
+
+    const result = await editProfileData(data, _id);
+    if (result?.success) {
+      setFile(null);
+      setPreview(null);
+      // reset only password-related fields so they don't persist
+      reset({
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+      setIsModalOpen(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!saving) {
+      setIsModalOpen(false);
+      setFile(null);
+      setPreview(null);
+      // clear only password fields
+      reset({
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsModalOpen(true)}
+        className="
+          inline-flex items-center justify-center
+          rounded-full
+          p-1.5
+          border border-transparent
+          text-[#4B5563]
+          hover:text-white
+          hover:bg-[#0071DC]
+          transition-colors
+        "
+        title="Edit profile"
+      >
+        <TbEditCircle className="text-xl" />
+      </button>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleClose}
+        className="
+          bg-white
+          rounded-2xl
+          border border-[#E5E7EB]
+          shadow-xl
+          max-w-[600px]
+          w-full
+        "
+      >
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="px-6 sm:px-8 py-6 sm:py-7">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-semibold text-lg sm:text-xl text-[#0F172A]">
+                  Edit Profile Details
+                </h2>
+                <p className="text-xs sm:text-sm text-[#6B7280] mt-1">
+                  Update your personal information and password used for
+                  bookings and contact.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5 my-6">
+              {/* ⭐ Image picker + preview with safe URL */}
+              <div className="flex items-center gap-4">
+                <div className="h-[84px] w-[84px] rounded-full border border-gray-200 shadow-sm overflow-hidden bg-gray-50">
+                  <img
+                    src={preview || getProfileImageUrl(profilePicture)}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm text-gray-600">
+                    Profile image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={onFileChange}
+                    className="text-sm"
+                  />
+                  <div className="text-xs text-gray-400">
+                    JPG/PNG, max 5MB. Square images look best.
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic info */}
+              <TextField
+                id="username"
+                label="Full Name"
+                variant="outlined"
+                defaultValue={username}
+                {...register("username")}
+                className="w-full"
+              />
+
+              <TextField
+                id="email"
+                label="Email"
+                variant="outlined"
+                defaultValue={email}
+                {...register("email")}
+                className="w-full"
+              />
+
+              <TextField
+                id="phoneNumber"
+                label="Phone"
+                type="number"
+                variant="outlined"
+                defaultValue={phoneNumber}
+                {...register("phoneNumber")}
+                className="w-full"
+              />
+
+              <TextField
+                id="adress"
+                label="Address"
+                multiline
+                rows={4}
+                defaultValue={adress}
+                {...register("adress")}
+                className="w-full"
+              />
+
+              {/* 🔐 Change Password section */}
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-[#111827] mb-3">
+                  Change Password (optional)
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <TextField
+                    id="currentPassword"
+                    label="Current Password"
+                    type="password"
+                    variant="outlined"
+                    {...register("currentPassword")}
+                    className="w-full"
+                  />
+                  <TextField
+                    id="newPassword"
+                    label="New Password"
+                    type="password"
+                    variant="outlined"
+                    {...register("newPassword")}
+                    className="w-full"
+                  />
+                  <TextField
+                    id="confirmNewPassword"
+                    label="Confirm New Password"
+                    type="password"
+                    variant="outlined"
+                    {...register("confirmNewPassword")}
+                    className="w-full"
+                  />
+                  <p className="text-[11px] text-gray-400">
+                    Leave these fields empty if you don&apos;t want to change
+                    your password.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-2">
+              <button
+                type="button"
+                className="
+                  px-4 sm:px-5
+                  py-2
+                  rounded-full
+                  border border-[#E5E7EB]
+                  bg-white
+                  text-sm font-medium
+                  text-[#374151]
+                  hover:bg-[#F3F4F6]
+                  transition-colors
+                "
+                onClick={handleClose}
+                disabled={saving}
+              >
+                Close
+              </button>
+
+              <button
+                type="submit"
+                className={`
+                  px-4 sm:px-5
+                  py-2
+                  rounded-full
+                  text-sm font-semibold
+                  text-white
+                  transition-colors
+                  ${saving ? "bg-gray-400" : "bg-[#0071DC] hover:bg-[#0654BA]"}
+                `}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+};
+
+export default ProfileEdit;
