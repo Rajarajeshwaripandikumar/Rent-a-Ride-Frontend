@@ -27,8 +27,20 @@ const schema = z.object({
   password: z.string().min(1, { message: "password required" }),
 });
 
+// ✅ Same backend logic as SignIn / SignUp / AdminSignin
+const API_BASE =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
+        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
+      "https://rent-a-ride-backend-c2km.onrender.com";
+
 export default function VendorSignin() {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(schema),
   });
 
@@ -38,7 +50,6 @@ export default function VendorSignin() {
   const location = useLocation();
 
   const redirectTo = location.state?.from || "/vendorDashboard";
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
   useEffect(() => {
     dispatch(resetAuthState());
@@ -66,7 +77,7 @@ export default function VendorSignin() {
 
       if (!res.ok || data.success === false || data.succes === false) {
         toast.error(data?.message || "Invalid email or password");
-        dispatch(signInFailure({ message: data?.message }));
+        dispatch(signInFailure({ message: data?.message || "Login failed" }));
         return;
       }
 
@@ -89,10 +100,11 @@ export default function VendorSignin() {
       <Toaster />
       <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center px-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-[#EEF2FF] border-b border-gray-200">
-            <h1 className={`${styles.heading2} text-lg font-semibold text-gray-900`}>
+            <h1
+              className={`${styles.heading2} text-lg font-semibold text-gray-900`}
+            >
               Vendor Sign In
             </h1>
 
@@ -105,7 +117,6 @@ export default function VendorSignin() {
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-4">
-
             <div>
               <TextField
                 label="Email"
@@ -129,11 +140,11 @@ export default function VendorSignin() {
               />
             </div>
 
-            {/* Forgot Password (points to user forgot page) */}
+            {/* Forgot Password */}
             <div className="flex justify-end -mt-1">
               <button
                 type="button"
-                onClick={() => navigate("/forgot-password")} // <-- updated to existing user route
+                onClick={() => navigate("/forgot-password")}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Forgot password?
@@ -150,7 +161,9 @@ export default function VendorSignin() {
 
             {isError && (
               <p className="text-red-600 text-[13px] mt-1">
-                {isError.message || "Something went wrong"}
+                {typeof isError === "string"
+                  ? isError
+                  : isError?.message || "Something went wrong"}
               </p>
             )}
 
@@ -161,12 +174,13 @@ export default function VendorSignin() {
               <span className="h-px flex-1 bg-gray-200" />
             </div>
 
-          
-
             {/* Footer */}
             <p className="text-center text-sm text-gray-600 pt-4 pb-2">
-              Don't have a vendor account?{" "}
-              <Link to="/vendorsignup" className="text-blue-600 font-medium hover:underline">
+              Don&apos;t have a vendor account?{" "}
+              <Link
+                to="/vendorsignup"
+                className="text-blue-600 font-medium hover:underline"
+              >
                 Sign up
               </Link>
             </p>
