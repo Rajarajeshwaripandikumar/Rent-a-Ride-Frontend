@@ -1,13 +1,16 @@
 // src/api.js
 
 // 1️⃣ Pick backend URL from Netlify env (VITE_API_BASE_URL)
-//    Fallback to localhost when you run `npm run dev`
+// Fallback to Render URL for production or localhost for development
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL &&
     import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")) ||
-  (import.meta.env.VITE_API_URL &&
-    import.meta.env.VITE_API_URL.replace(/\/+$/, "")) || // in case you used this old name
-  "http://localhost:5000";
+  "https://rent-a-ride-backend-c2km.onrender.com"; // fallback to Render URL for production
+
+// If running locally, make sure it's localhost
+if (import.meta.env.MODE === "development") {
+  API_BASE_URL = "http://localhost:5000"; // localhost when in dev mode
+}
 
 // 2️⃣ Core request helper
 async function request(path, { method = "GET", body, headers, ...rest } = {}) {
