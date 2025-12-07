@@ -3,6 +3,16 @@ import { useDispatch } from "react-redux";
 import { signInSuccess } from "../../redux/user/userSlice";
 import { useNavigate } from "react-router-dom";
 
+// Backend base URL:
+// - DEV  -> http://localhost:5000
+// - PROD -> VITE_PRODUCTION_BACKEND_URL (Netlify env) or Render fallback
+const API_BASE_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
+        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
+      "https://rent-a-ride-backend-c2km.onrender.com";
+
 function AdminSignin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,17 +26,17 @@ function AdminSignin() {
     setError(null);
 
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data.message || "Admin login failed");
+      if (!res.ok || !data) {
+        throw new Error(data?.message || "Admin login failed");
       }
 
       const user = data.user || data;
@@ -35,10 +45,18 @@ function AdminSignin() {
         throw new Error("Access denied: Not an admin account");
       }
 
+      // Optional: store tokens if your backend returns them
+      if (data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+
       dispatch(signInSuccess(user));
       navigate("/adminDashboard");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Admin login failed");
     }
   };
 
