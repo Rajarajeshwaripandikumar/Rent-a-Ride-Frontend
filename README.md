@@ -1,61 +1,35 @@
-Rent a Ride - Full Stack Vehicle Rental Application
-Overview
+# Rent a Ride – Frontend 🚗
 
-A full-stack application for renting vehicles, built with React (frontend) and Node.js with Express (backend). It includes features like vehicle browsing, filtering, booking, and payment processing.
+A modern React-based frontend for the **Rent a Ride** vehicle rental platform. Users can browse, view vehicle details, and complete the booking flow.
 
-Tech Stack
+---
 
-Frontend: React, TailwindCSS, React Router
+## 🚀 Tech Stack
 
-Backend: Node.js, Express
+- **Framework**: React + Vite
+- **Styling**: Tailwind CSS
+- **Routing**: React Router
+- **State Management**: Redux Toolkit
+- **Icons**: React-Icons
+- **Forms / Validation**: react-hook-form, zod
+- **Notifications**: Sonner / toast
+- **API**: REST APIs from the Rent a Ride backend
 
-Database: MongoDB
+---
 
-Authentication: JWT (JSON Web Tokens)
+## ⚙️ Setup & Installation
 
-Payment Gateway: Razorpay (for bookings)
+1.**Clone the repository:**
 
-State Management: Redux
+git clone https://github.com/Rajarajeshwaripandikumar/rent-a-ride-frontend.git
 
-Deployment: Docker, Heroku / AWS (optional)
-
-Version Control: Git, GitHub
-
-Table of Contents
-
-Frontend Setup
-
-Backend Setup
-
-Frontend and Backend Integration
-
-Features
-
-License
-
-Frontend Setup
-Prerequisites
-
-Node.js >= 16.x
-
-npm (comes with Node.js)
-
-Installation
-
-Clone the repository:
-
-git clone https://github.com/yourusername/rent-a-ride.git
-cd rent-a-ride/frontend
-
-
-Install dependencies:
-
+cd rent-a-ride-frontend
+   
+2.**Install dependencies:** 
 npm install
 
+3.**Run the development server:**
+npm run dev
 
-Start the development server:
+Vite server typically runs at http://localhost:5173.
 
-npm start
-
-
-This will run the frontend on http://localhost:5173 by default.
