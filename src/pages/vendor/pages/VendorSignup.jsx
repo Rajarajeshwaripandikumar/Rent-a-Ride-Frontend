@@ -21,7 +21,13 @@ const schema = z.object({
   password: z.string().min(4, { message: "minimum 4 characters required" }),
 });
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+// ✅ Same base URL logic as SignIn / SignUp / VendorSignin / AdminSignin
+const API_BASE =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
+        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
+      "https://rent-a-ride-backend-c2km.onrender.com";
 
 export default function VendorSignup() {
   const {
@@ -54,12 +60,13 @@ export default function VendorSignup() {
       try {
         data = await res.json();
       } catch (e) {
-        // ignore
+        // ignore JSON parse errors, we'll handle via res.ok
       }
 
       if (!res.ok || data?.succes === false || data?.success === false) {
-        setError(data?.message || "Signup failed");
-        toast.error(data?.message || "Signup failed");
+        const msg = data?.message || "Signup failed";
+        setError(msg);
+        toast.error(msg);
         setLoading(false);
         return;
       }
@@ -83,13 +90,12 @@ export default function VendorSignup() {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-[#EEF2FF] border-b border-gray-200">
             <div className="flex items-center gap-3">
-              
               <div>
-                
-                <h1 className={`${styles.heading2} text-lg font-semibold text-gray-900`}>
-              Vendor Sign Up
-            </h1>
-                
+                <h1
+                  className={`${styles.heading2} text-lg font-semibold text-gray-900`}
+                >
+                  Vendor Sign Up
+                </h1>
               </div>
             </div>
 
@@ -105,7 +111,10 @@ export default function VendorSignup() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="px-6 py-6 space-y-4"
+          >
             <div>
               <TextField
                 label="Username"
@@ -150,7 +159,9 @@ export default function VendorSignup() {
 
             {isError && (
               <p className="text-red-600 text-[13px] mt-1">
-                {typeof isError === "string" ? isError : isError?.message || "Something went wrong"}
+                {typeof isError === "string"
+                  ? isError
+                  : isError?.message || "Something went wrong"}
               </p>
             )}
 
@@ -161,11 +172,12 @@ export default function VendorSignup() {
               <span className="h-px flex-1 bg-gray-200" />
             </div>
 
-           
-
             <p className="text-center text-sm text-gray-600 pt-4 pb-2">
               Already have an account?{" "}
-              <Link to="/vendorsignin" className="text-blue-600 font-medium hover:underline">
+              <Link
+                to="/vendorsignin"
+                className="text-blue-600 font-medium hover:underline"
+              >
                 Sign in
               </Link>
             </p>
