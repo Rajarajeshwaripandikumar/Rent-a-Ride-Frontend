@@ -1,4 +1,3 @@
-// src/pages/vendor/VendorSignin.jsx
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -19,14 +18,14 @@ import { Toaster, toast } from "sonner";
 const schema = z.object({
   email: z
     .string()
-    .min(1, { message: "email required" })
+    .min(1, { message: "Email is required" })
     .refine((v) => /\S+@\S+\.\S+/.test(v), {
       message: "Invalid email address",
     }),
-  password: z.string().min(1, { message: "password required" }),
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
-// ✅ Same backend logic as SignIn / SignUp / AdminSignin
+// Define the API base URL for development and production
 const API_BASE =
   import.meta.env.MODE === "development"
     ? "http://localhost:5000"
@@ -74,7 +73,7 @@ export default function VendorSignin() {
         return;
       }
 
-      if (!res.ok || data.success === false || data.succes === false) {
+      if (!res.ok || data.success === false) {
         toast.error(data?.message || "Invalid email or password");
         dispatch(signInFailure({ message: data?.message || "Login failed" }));
         return;
