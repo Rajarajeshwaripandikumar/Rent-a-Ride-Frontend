@@ -1,8 +1,9 @@
+// src/components/Header.jsx (or wherever you keep it)
 import styles from "../index";
 import { navLinks } from "../constants";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { toast } from "sonner"; // ✅ NEW: to show message
+import { toast } from "sonner";
 
 function Header() {
   const { currentUser } = useSelector((state) => state.user);
@@ -11,7 +12,7 @@ function Header() {
     currentUser && !currentUser.isAdmin && !currentUser.isVendor;
 
   return (
-    <header className="w-full flex justify-center px-3 sm:px-6 lg:px-10 pt-3 md:pt-6 bg-[#F5F7FB]">
+    <header className="w-full bg-[#F5F7FB] flex justify-center px-3 sm:px-6 lg:px-10 pt-3 md:pt-6">
       <div
         className="
           w-full max-w-[1200px]
@@ -24,10 +25,10 @@ function Header() {
           border border-[#E5E7EB]
           shadow-md
           px-4 sm:px-6 lg:px-8
-          py-3 lg:py-4
+          py-3 sm:py-3.5 lg:py-4
         "
       >
-        {/* LOGO */}
+        {/* ---------- LOGO ---------- */}
         <Link to="/" className="shrink-0">
           <div className="inline-flex items-center gap-2 select-none">
             <svg
@@ -52,7 +53,7 @@ function Header() {
           </div>
         </Link>
 
-        {/* NAVIGATION LINKS – now visible on mobile too */}
+        {/* ---------- NAV LINKS (desktop + mobile) ---------- */}
         <nav
           className="
             w-full md:w-auto
@@ -67,6 +68,9 @@ function Header() {
               gap-3 md:gap-6
               text-[13px] sm:text-[14px]
               overflow-x-auto md:overflow-visible
+              overflow-y-hidden
+              whitespace-nowrap
+              no-scrollbar
             "
           >
             {navLinks.map((navlink, index) => (
@@ -90,7 +94,7 @@ function Header() {
           </ul>
         </nav>
 
-        {/* BUTTONS & USER AVATAR */}
+        {/* ---------- BUTTONS / AVATAR ---------- */}
         <div
           className="
             flex flex-wrap
@@ -100,7 +104,7 @@ function Header() {
             w-full md:w-auto
           "
         >
-          {/* Logged-in normal user avatar */}
+          {/* Normal logged-in user → avatar only */}
           {isNormalUser && (
             <Link to="/profile">
               <img
@@ -115,16 +119,18 @@ function Header() {
             </Link>
           )}
 
-          {/* Logged-out OR non-normal-user: Show buttons */}
+          {/* Not normal user → show buttons */}
           {!isNormalUser && (
             <>
-              {/* Admin */}
+              {/* Admin Sign In */}
               <Link
                 to="/adminSignin"
                 onClick={(e) => {
                   if (isNormalUser) {
                     e.preventDefault();
-                    toast.error("Only admins can sign in here. Use Sign In.");
+                    toast.error(
+                      "Only admins can sign in here. Use Sign In."
+                    );
                   }
                 }}
               >
