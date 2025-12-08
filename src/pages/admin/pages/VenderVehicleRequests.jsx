@@ -14,6 +14,9 @@ import {
   setAdminVendorRequests,
 } from "../../../redux/vendor/vendorDashboardSlice";
 
+// ✅ central API wrapper
+import { api } from "../../../api";
+
 const VenderVehicleRequests = () => {
   const { adminVendorRequests } = useSelector(
     (state) => state.vendorDashboardSlice
@@ -26,18 +29,19 @@ const VenderVehicleRequests = () => {
   useEffect(() => {
     const fetchVendorRequest = async () => {
       try {
-        const res = await fetch(`/api/admin/fetchVendorVehilceRequests`);
-        if (!res.ok) {
-          console.error("Failed to fetch vendor requests:", res.statusText);
-          return;
-        }
+        // ✅ use api.get so Authorization + cookies + base URL are handled
+        const data = await api.get("/api/admin/fetchVendorVehilceRequests");
 
-        const data = await res.json();
+        const requests = Array.isArray(data?.requests)
+          ? data.requests
+          : Array.isArray(data)
+          ? data
+          : [];
 
-        dispatch(setVendorVehicles(data.requests));
-        dispatch(setAdminVendorRequests(data.requests));
+        dispatch(setVendorVehicles(requests));
+        dispatch(setAdminVendorRequests(requests));
       } catch (error) {
-        console.log(error);
+        console.error("Failed to fetch vendor requests:", error);
       }
     };
 
@@ -51,20 +55,11 @@ const VenderVehicleRequests = () => {
     try {
       dispatch(setUpdateRequestTable(id));
 
-      const res = await fetch("/api/admin/approveVendorVehicleRequest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: id }),
-      });
-
-      if (!res.ok) {
-        console.error("Approval failed");
-        return;
-      }
-
-      await res.json();
+      await api.post("/api/admin/approveVendorVehicleRequest", { _id: id });
+      // backend should update Redux via refetch or socket;
+      // if needed you can refetch list here
     } catch (error) {
-      console.log(error);
+      console.error("Approval failed:", error);
     }
   };
 
@@ -75,20 +70,10 @@ const VenderVehicleRequests = () => {
     try {
       dispatch(setUpdateRequestTable(id));
 
-      const res = await fetch("/api/admin/rejectVendorVehicleRequest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: id }),
-      });
-
-      if (!res.ok) {
-        console.error("Rejection failed");
-        return;
-      }
-
-      await res.json();
+      await api.post("/api/admin/rejectVendorVehicleRequest", { _id: id });
+      // same here: optionally refetch
     } catch (error) {
-      console.log(error);
+      console.error("Rejection failed:", error);
     }
   };
 
