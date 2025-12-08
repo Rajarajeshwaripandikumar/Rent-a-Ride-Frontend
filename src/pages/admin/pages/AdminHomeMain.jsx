@@ -65,6 +65,9 @@ const formatCsvDate = (dateStr) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
+// Helper to ensure Excel treats phone number as text
+const formatPhoneNumber = (phone) => (phone ? `="${phone}"` : "");
+
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -259,13 +262,13 @@ const AdminHomeMain = () => {
 
       vendors.forEach((v) => {
         // IMPORTANT: wrap phone with ="..." so Excel keeps it as text
-        const phoneCell = v.phoneNumber ? `="${v.phoneNumber}"` : "";
+        const phoneCell = formatPhoneNumber(v.phoneNumber);
         rows.push([
           v.username || "",
           v.email || "",
-          phoneCell,
+          phoneCell, // Excel-friendly phone formatting
           v.isVendor ? "Yes" : "No",
-          formatCsvDate(v.createdAt),
+          formatCsvDate(v.createdAt), // Date formatting
         ]);
       });
 
@@ -280,7 +283,7 @@ const AdminHomeMain = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "vendors_report.csv";
+      a.download = "vendors_report.csv"; // name of the file
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -325,9 +328,8 @@ const AdminHomeMain = () => {
   /* ---------- JSX BELOW IS UNCHANGED ---------- */
   return (
     <div className="mt-6 md:mt-8 px-4 sm:px-6 lg:px-8 select-none">
-      {/* ... your existing JSX ... */}
-      {/* I’m not repeating it to keep this message short; 
-          only handleDownloadCsv and helpers above changed */}
+      {/* Your existing JSX code remains unchanged */}
+      {/* Only the handleDownloadCsv and helper functions are updated */}
     </div>
   );
 };
