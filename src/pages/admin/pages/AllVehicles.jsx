@@ -15,6 +15,9 @@ import { clearAdminVehicleToast } from "../../../redux/adminSlices/adminDashboar
 // local fallback image
 import noCars from "../../../assets/My team1.png";
 
+// ✅ central API wrapper
+import { api } from "../../../api";
+
 /* ============================================================
    Helper: build image src from whatever backend sends
    -> always returns something usable by React
@@ -86,29 +89,28 @@ function AllVehicles() {
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
-        const res = await fetch("/api/admin/showVehicles");
-        if (res.ok) {
-          const data = await res.json();
+        // ✅ use api.get so Authorization + cookies are attached
+        const data = await api.get("/api/admin/showVehicles");
 
-          // backend might return { success, vehicles: [] } or array directly
-          const normalized = Array.isArray(data)
-            ? data
-            : Array.isArray(data?.vehicles)
-            ? data.vehicles
-            : [];
+        const normalized = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.vehicles)
+          ? data.vehicles
+          : [];
 
-          setVehicles(normalized);
-          dispatch(showVehicles(normalized));
-        } else {
-          console.warn("Failed to fetch admin vehicles", res.status);
-        }
+        setVehicles(normalized);
+        dispatch(showVehicles(normalized));
       } catch (error) {
         console.error("fetchVehicles error:", error);
+        if (error.status === 401 || error.status === 403) {
+          toast.error("Admin session expired. Please log in again.");
+          navigate("/adminSignin");
+        }
       }
     };
 
     fetchVehicles();
-  }, [isAddVehicleClicked, dispatch]);
+  }, [isAddVehicleClicked, dispatch, navigate]);
 
   /* ============================================================
       DELETE VEHICLE (confirm + optimistic UI + rollback on failure)
@@ -122,27 +124,26 @@ function AllVehicles() {
     setDeletingId(vehicle_id);
 
     try {
-      const res = await fetch(`/api/admin/deleteVehicle/${vehicle_id}`, {
-        method: "DELETE",
-      });
+      // ✅ use api.del so token is sent
+      await api.del(`/api/admin/deleteVehicle/${vehicle_id}`);
 
-      if (res.ok) {
-        toast.success("Vehicle deleted", {
-          duration: 1500,
-          style: {
-            color: "white",
-            background: "#c48080",
-          },
-        });
-      } else {
-        setVehicles(previous);
-        console.warn("delete failed", res.status);
-        toast.error("Delete failed — restored list");
-      }
+      toast.success("Vehicle deleted", {
+        duration: 1500,
+        style: {
+          color: "white",
+          background: "#c48080",
+        },
+      });
     } catch (error) {
       setVehicles(previous);
       console.error("delete error:", error);
-      toast.error("Delete failed due to network error");
+
+      if (error.status === 401 || error.status === 403) {
+        toast.error("Admin session expired. Please log in again.");
+        navigate("/adminSignin");
+      } else {
+        toast.error("Delete failed — restored list");
+      }
     } finally {
       setDeletingId(null);
     }
@@ -248,7 +249,6 @@ function AllVehicles() {
       return notDeleted && isApproved;
     })
     .map((v) => {
-      // raw value from backend (array or string)
       const rawImage =
         Array.isArray(v.image) && v.image.length > 0 ? v.image[0] : v.image;
 
