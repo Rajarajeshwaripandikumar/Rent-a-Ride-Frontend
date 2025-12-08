@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { MdCurrencyRupee } from "react-icons/md";
 import { IoMdTime } from "react-icons/io";
 import { CiCalendarDate, CiLocationOn } from "react-icons/ci";
-import { toast } from "sonner"; // ✅ NEW
+import { toast } from "sonner";
 import UserOrderDetailsModal from "../../components/UserOrderDetailsModal";
 import {
   setIsOrderModalOpen,
@@ -56,7 +56,7 @@ function resolveVehicleImage(src) {
 }
 
 /* -----------------------------------------
-   ✅ UPDATED ImageWithFallback (image fills nicely)
+   ImageWithFallback
 ------------------------------------------*/
 function ImageWithFallback({
   src,
@@ -84,8 +84,8 @@ function ImageWithFallback({
       className={`relative overflow-hidden rounded-xl ${className}`}
       style={{
         width: "100%",
-        maxWidth: size, // card width control
-        aspectRatio: "4 / 3", // nice landscape ratio like your UI
+        maxWidth: size,
+        aspectRatio: "4 / 3",
       }}
     >
       {!errored && currentSrc ? (
@@ -103,7 +103,7 @@ function ImageWithFallback({
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover", // 🔥 fill box, no empty space
+            objectFit: "cover",
             opacity: loaded ? 1 : 0,
             transition: "opacity 220ms ease-in-out",
           }}
@@ -130,7 +130,7 @@ function ImageWithFallback({
 }
 
 /* -----------------------------------------
-   normalizeBooking (non-mutating, returns new objects)
+   normalizeBooking (non-mutating)
 ------------------------------------------*/
 const normalizeBooking = (raw) => {
   if (!raw || typeof raw !== "object") {
@@ -209,14 +209,8 @@ export default function Orders() {
 
   console.log("[Orders] currentUser:", currentUser, "id:", _id);
 
-  // ✅ base URL for backend
-  const API_BASE_URL =
-    import.meta.env.MODE === "development"
-      ? import.meta.env.VITE_API_URL || ""
-      : import.meta.env.VITE_PRODUCTION_BACKEND_URL || "";
-
   /* -----------------------------------------
-     Fetch bookings (robust parsing)
+     Fetch bookings
   ------------------------------------------*/
   const fetchBookings = async () => {
     if (!_id) {
@@ -324,7 +318,9 @@ export default function Orders() {
     setTimeout(() => dispatch(setIsOrderModalOpen(true)), 0);
   };
 
-  // ✅ NEW: download invoice for given booking
+  /* -----------------------------------------
+     Download invoice for given booking
+  ------------------------------------------*/
   const handleDownloadInvoice = async (bookingDetails, id, cur) => {
     try {
       const bookingId =
@@ -339,14 +335,12 @@ export default function Orders() {
       const headers = {};
       if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/user/invoice/${bookingId}`,
-        {
-          method: "GET",
-          headers,
-          credentials: "include",
-        }
-      );
+      // use relative /api path so Netlify proxy / Render works
+      const res = await fetch(`/api/user/invoice/${bookingId}`, {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
 
       if (!res.ok) {
         toast.error("Failed to download invoice.");
@@ -628,7 +622,6 @@ export default function Orders() {
                             Details
                           </button>
 
-                          {/* ✅ NEW: Download Invoice */}
                           <button
                             className="inline-flex items-center justify-center rounded-full bg-white border border-[#2563EB] px-5 py-2.5 text-sm font-medium text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
                             onClick={() =>
@@ -648,8 +641,7 @@ export default function Orders() {
         </div>
       </main>
 
-      {/* Footer if you use it */}
-      {/* <Footers /> */}
+      <Footers />
     </div>
   );
 }
