@@ -1,21 +1,13 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
+import { api } from "../api"; // ✅ central authorized axios instance
 
 const STATS_URL = "/api/admin/stats"; // proxied by vite -> backend
 const STATS_REPORT_URL = "/api/admin/stats/report/csv"; // ✅ NEW
 const USERS_URL = "/api/admin/users";
 const VENDORS_URL = "/api/admin/vendors";
 const VENDORS_REPORT_URL = "/api/admin/vendors/report/csv"; // now unused, but kept
-
-// 🔹 Helper: attach admin JWT from localStorage
-const getAuthHeaders = (extra = {}) => {
-  const token = localStorage.getItem("adminToken");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extra,
-  };
-};
 
 // 🔹 Helpers for display
 const formatCurrency = (value) =>
@@ -95,18 +87,8 @@ const AdminHomeMain = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(STATS_URL, {
-          method: "GET",
-          credentials: "include",
-          headers: getAuthHeaders(),
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Status ${res.status}`);
-        }
-
-        const data = await res.json();
+        const res = await api.get(STATS_URL); // ✅ uses authorized axios
+        const data = res.data;
 
         if (!mounted) return;
 
@@ -152,7 +134,11 @@ const AdminHomeMain = () => {
       } catch (err) {
         console.error("admin stats fetch failed:", err);
         if (mounted)
-          setError(err.message || "Failed to fetch stats from server");
+          setError(
+            err?.response?.data?.message ||
+              err.message ||
+              "Failed to fetch stats from server"
+          );
       } finally {
         if (mounted) setLoading(false);
       }
@@ -174,38 +160,22 @@ const AdminHomeMain = () => {
         setUvError(null);
 
         const [usersRes, vendorsRes] = await Promise.all([
-          fetch(USERS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
-          fetch(VENDORS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
+          api.get(USERS_URL), // ✅
+          api.get(VENDORS_URL), // ✅
         ]);
-
-        if (!usersRes.ok) {
-          const txt = await usersRes.text();
-          throw new Error(txt || "Failed to fetch users");
-        }
-        if (!vendorsRes.ok) {
-          const txt = await vendorsRes.text();
-          throw new Error(txt || "Failed to fetch vendors");
-        }
-
-        const usersData = await usersRes.json();
-        const vendorsData = await vendorsRes.json();
 
         if (!mounted) return;
 
-        setUsers(usersData.users || []);
-        setVendors(vendorsData.vendors || []);
+        setUsers(usersRes.data.users || []);
+        setVendors(vendorsRes.data.vendors || []);
       } catch (err) {
         console.error("users/vendors fetch failed:", err);
         if (mounted)
-          setUvError(err.message || "Failed to fetch users/vendors");
+          setUvError(
+            err?.response?.data?.message ||
+              err.message ||
+              "Failed to fetch users/vendors"
+          );
       } finally {
         if (mounted) setUvLoading(false);
       }
@@ -246,24 +216,13 @@ const AdminHomeMain = () => {
   const saveVendor = async () => {
     if (!editingVendorId) return;
     try {
-      const res = await fetch(`/api/admin/vendors/${editingVendorId}`, {
-        method: "PUT",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        credentials: "include",
-        body: JSON.stringify({
-          username: vendorForm.username,
-          email: vendorForm.email,
-          phoneNumber: vendorForm.phoneNumber,
-        }),
-      });
+      const res = await api.put(`/api/admin/vendors/${editingVendorId}`, {
+        username: vendorForm.username,
+        email: vendorForm.email,
+        phoneNumber: vendorForm.phoneNumber,
+      }); // ✅ authorized axios
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to update vendor");
-      }
-
-      const data = await res.json();
-      const updatedVendor = data.vendor;
+      const updatedVendor = res.data.vendor;
 
       setVendors((prev) =>
         prev.map((v) => (v._id === updatedVendor._id ? updatedVendor : v))
@@ -272,7 +231,11 @@ const AdminHomeMain = () => {
       cancelEditVendor();
     } catch (err) {
       console.error("Update vendor error:", err);
-      alert(err.message || "Failed to update vendor");
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Failed to update vendor"
+      );
     }
   };
 
@@ -325,18 +288,11 @@ const AdminHomeMain = () => {
   // ✅ ---------- DOWNLOAD ADMIN STATS CSV (EARNINGS CARD) ----------
   const handleDownloadStatsReport = async () => {
     try {
-      const res = await fetch(STATS_REPORT_URL, {
-        method: "GET",
-        credentials: "include",
-        headers: getAuthHeaders(),
-      });
+      const res = await api.get(STATS_REPORT_URL, {
+        responseType: "blob",
+      }); // ✅ authorized + cookies
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to download stats report");
-      }
-
-      const blob = await res.blob();
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -347,7 +303,11 @@ const AdminHomeMain = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Stats CSV download error:", err);
-      alert(err.message || "Could not download stats report");
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Could not download stats report"
+      );
     }
   };
 
