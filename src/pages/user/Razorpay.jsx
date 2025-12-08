@@ -5,7 +5,7 @@ import {
   setisPaymentDone,
 } from "../../redux/user/LatestBookingsSlice";
 import { setIsSweetAlert, setPageLoading } from "../../redux/user/userSlice";
-import { api } from "../../../api"; // ✅ use central API helper
+import { api } from "../../api"; // ✅ use central API helper
 
 /* ------------------  LOAD SCRIPT  ------------------ */
 export function loadScript(src) {
