@@ -1,5 +1,6 @@
 // src/pages/admin/pages/Kanban.jsx
 import { useEffect, useState, useMemo } from "react";
+import { api } from "../../../api"; // ✅ central API helper
 
 const ALL_BOOKINGS_URL = "/api/admin/allBookings";
 const CHANGE_STATUS_URL = "/api/admin/changeStatus";
@@ -27,22 +28,9 @@ const Kanban = () => {
       setLoading(true);
       setErrorMsg("");
 
-      const res = await fetch(ALL_BOOKINGS_URL, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
+      // ✅ goes through src/api.js (handles base URL + cookies + tokens)
+      const raw = await api.get(ALL_BOOKINGS_URL);
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.warn("[Kanban] allBookings failed:", res.status, txt);
-        setBookings([]);
-        setErrorMsg("Failed to load bookings.");
-        setLoading(false);
-        return;
-      }
-
-      const raw = await res.json().catch(() => null);
       let list = [];
 
       if (Array.isArray(raw)) list = raw;
@@ -117,14 +105,11 @@ const Kanban = () => {
     const { bookingId, fromStatus } = data;
     if (!bookingId || !fromStatus || fromStatus === targetStatus) return;
 
-    // Optimistic update in UI
+    // ✅ Optimistic update in UI
     setBookings((prev) =>
       prev.map((b) =>
         String(b._id) === String(bookingId)
-          ? {
-              ...b,
-              status: targetStatus,
-            }
+          ? { ...b, status: targetStatus }
           : b
       )
     );
@@ -133,35 +118,15 @@ const Kanban = () => {
     setErrorMsg("");
 
     try {
-      const res = await fetch(CHANGE_STATUS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          id: bookingId,
-          status: targetStatus,
-        }),
+      await api.post(CHANGE_STATUS_URL, {
+        id: bookingId,
+        status: targetStatus,
       });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.warn("[Kanban] changeStatus failed:", res.status, txt);
-
-        // revert if failed
-        setBookings((prev) =>
-          prev.map((b) =>
-            String(b._id) === String(bookingId)
-              ? { ...b, status: fromStatus }
-              : b
-          )
-        );
-        setErrorMsg("Failed to update booking status.");
-        return;
-      }
+      // if success, keep optimistic state
     } catch (err) {
-      console.error("[Kanban] changeStatus error:", err);
+      console.warn("[Kanban] changeStatus failed:", err?.status, err?.message);
+
+      // ❌ revert on error
       setBookings((prev) =>
         prev.map((b) =>
           String(b._id) === String(bookingId)
@@ -169,7 +134,11 @@ const Kanban = () => {
             : b
         )
       );
-      setErrorMsg("Network error while updating status.");
+      setErrorMsg(
+        err?.status === 401 || err?.status === 403
+          ? "Session expired or unauthorized."
+          : "Failed to update booking status."
+      );
     } finally {
       setUpdatingId(null);
     }
