@@ -8,7 +8,6 @@ import {
   resetAuthState,
 } from "../../../redux/user/userSlice";
 import styles from "../../..";
-import VendorOAuth from "../../../components/VendorAuth";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,17 +56,18 @@ export default function VendorSignin() {
     try {
       dispatch(signInStart());
 
+      // Make API call to sign in the vendor
       const res = await fetch(`${API_BASE}/api/vendor/vendorsignin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include",  // Include cookies with the request
         body: JSON.stringify(formData),
       });
 
       let data;
       try {
         data = await res.json();
-      } catch {
+      } catch (error) {
         toast.error("Invalid server response");
         dispatch(signInFailure({ message: "Invalid server response" }));
         return;
@@ -93,7 +93,7 @@ export default function VendorSignin() {
       // Dispatch success and navigate
       dispatch(signInSuccess(data));
       navigate(redirectTo, { replace: true });
-    } catch {
+    } catch (error) {
       toast.error("Network error. Please try again.");
       dispatch(signInFailure({ message: "Network error" }));
     }
@@ -163,9 +163,7 @@ export default function VendorSignin() {
 
             {isError && (
               <p className="text-red-600 text-[13px] mt-1">
-                {typeof isError === "string"
-                  ? isError
-                  : isError?.message || "Something went wrong"}
+                {typeof isError === "string" ? isError : isError?.message || "Something went wrong"}
               </p>
             )}
 
