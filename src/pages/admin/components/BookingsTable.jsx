@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
-import { api } from "../../../api"; // ⭐ USE CENTRAL API WRAPPER
+// ⬇️ one more "../" because we're inside OrdersComponents
+import { api } from "../../../../api";
 
 /* -----------------------------------------------------------
-   Image resolver
+   Image resolver -> prefer images from public/vehicles/*
 ------------------------------------------------------------ */
 const PLACEHOLDER_IMG = "/vehicles/home.webp";
 
@@ -14,6 +15,7 @@ const resolveVehicleImage = (img) => {
 
   let v = img;
 
+  // backend might send object/array
   if (typeof v === "object") {
     v =
       v.url ||
@@ -26,12 +28,21 @@ const resolveVehicleImage = (img) => {
 
   if (typeof v !== "string") return PLACEHOLDER_IMG;
 
-  const t = v.trim();
+  let t = v.trim();
   if (!t) return PLACEHOLDER_IMG;
 
-  if (t.startsWith("http")) return t;
+  // 🔥 if it's an HTTP URL, convert to local /vehicles/<fileName>
+  if (t.startsWith("http://") || t.startsWith("https://")) {
+    const lastSeg = t.split(/[\/\\]/).pop() || "";
+    const clean = lastSeg.split("?")[0]; // remove query string if any
+    if (!clean) return PLACEHOLDER_IMG;
+    return `/vehicles/${clean}`;
+  }
+
+  // already a /vehicles path
   if (t.startsWith("/vehicles/")) return t;
 
+  // e.g. "uploads/vehicles/foo.jpg" or "foo"
   let fileName = t.split(/[/\\]/).pop() || t;
   fileName = fileName.replace(/^\/?vehicles\//, "");
   if (!fileName.includes(".")) fileName += ".jpg";
@@ -99,7 +110,7 @@ const BookingsTable = () => {
   const formatDate = (raw) => {
     if (!raw) return "—";
 
-    // if backend already sends nice "dd/mm/yyyy" or "mm/dd/yyyy", just show it
+    // already a nice "dd/mm/yyyy" or "mm/dd/yyyy"
     if (
       typeof raw === "string" &&
       /^\d{2}[/-]\d{2}[/-]\d{4}$/.test(raw.trim())
