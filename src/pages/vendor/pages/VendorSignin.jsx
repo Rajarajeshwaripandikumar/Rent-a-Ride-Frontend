@@ -13,6 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import TextField from "@mui/material/TextField";
 import { Toaster, toast } from "sonner";
+import { api } from "../../../api"; // ✅ use your centralized api.js
 
 const schema = z.object({
   email: z
@@ -23,14 +24,6 @@ const schema = z.object({
     }),
   password: z.string().min(1, { message: "Password is required" }),
 });
-
-// Define the API base URL for development and production
-const API_BASE =
-  import.meta.env.MODE === "development"
-    ? "http://localhost:5000"
-    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
-        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
-      "https://rent-a-ride-backend-c2km.onrender.com";
 
 export default function VendorSignin() {
   const {
@@ -56,28 +49,11 @@ export default function VendorSignin() {
     try {
       dispatch(signInStart());
 
-      // Make API call to sign in the vendor
-      const res = await fetch(`${API_BASE}/api/vendor/vendorsignin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",  // Include cookies with the request
-        body: JSON.stringify(formData),
-      });
+      // ✅ use api.post – it already adds base URL, JSON, token, cookies
+      const data = await api.post("/api/vendor/vendorsignin", formData);
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (error) {
-        toast.error("Invalid server response");
-        dispatch(signInFailure({ message: "Invalid server response" }));
-        return;
-      }
-
-      if (!res.ok || data.success === false) {
-        toast.error(data?.message || "Invalid email or password");
-        dispatch(signInFailure({ message: data?.message || "Login failed" }));
-        return;
-      }
+      // Optional: log once to see shape
+      // console.log("Vendor signin response:", data);
 
       if (!data.isVendor) {
         toast.error("Not a vendor account");
@@ -85,17 +61,30 @@ export default function VendorSignin() {
         return;
       }
 
-      // ✅ Store token in localStorage for future requests
-      if (data.token) {
-        localStorage.setItem("accessToken", data.token);
+      // ✅ Normalise token names:
+      // backend might send `accessToken` or `token`
+      const accessToken = data.accessToken || data.token;
+      const refreshToken = data.refreshToken;
+
+      if (accessToken) {
+        localStorage.setItem("accessToken", accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
       }
 
-      // Dispatch success and navigate
       dispatch(signInSuccess(data));
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      toast.error("Network error. Please try again.");
-      dispatch(signInFailure({ message: "Network error" }));
+      console.error("Vendor signin error:", error);
+
+      const message =
+        error?.data?.message ||
+        error?.message ||
+        "Network error. Please try again.";
+
+      toast.error(message);
+      dispatch(signInFailure({ message }));
     }
   };
 
@@ -106,7 +95,9 @@ export default function VendorSignin() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-[#EEF2FF] border-b border-gray-200">
-            <h1 className={`${styles.heading2} text-lg font-semibold text-gray-900`}>
+            <h1
+              className={`${styles.heading2} text-lg font-semibold text-gray-900`}
+            >
               Vendor Sign In
             </h1>
 
@@ -118,7 +109,10 @@ export default function VendorSignin() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="px-6 py-6 space-y-4"
+          >
             <div>
               <TextField
                 label="Email"
@@ -163,7 +157,9 @@ export default function VendorSignin() {
 
             {isError && (
               <p className="text-red-600 text-[13px] mt-1">
-                {typeof isError === "string" ? isError : isError?.message || "Something went wrong"}
+                {typeof isError === "string"
+                  ? isError
+                  : isError?.message || "Something went wrong"}
               </p>
             )}
 
