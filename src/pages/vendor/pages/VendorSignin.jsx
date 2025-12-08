@@ -1,5 +1,4 @@
 // src/pages/vendor/VendorSignin.jsx
-
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -87,6 +86,12 @@ export default function VendorSignin() {
         return;
       }
 
+      // ✅ Store token in localStorage for future requests
+      if (data.token) {
+        localStorage.setItem("accessToken", data.token);
+      }
+
+      // Dispatch success and navigate
       dispatch(signInSuccess(data));
       navigate(redirectTo, { replace: true });
     } catch {
@@ -102,9 +107,7 @@ export default function VendorSignin() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-[#EEF2FF] border-b border-gray-200">
-            <h1
-              className={`${styles.heading2} text-lg font-semibold text-gray-900`}
-            >
+            <h1 className={`${styles.heading2} text-lg font-semibold text-gray-900`}>
               Vendor Sign In
             </h1>
 
