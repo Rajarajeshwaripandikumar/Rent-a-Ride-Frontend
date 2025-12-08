@@ -2,11 +2,10 @@
 import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
-// ⬇️ one more "../" because we're inside OrdersComponents
-import { api } from "../../../api";
+import { api } from "../../../api"; // ⭐ USE CENTRAL API WRAPPER
 
 /* -----------------------------------------------------------
-   Image resolver -> prefer images from public/vehicles/*
+   Image resolver
 ------------------------------------------------------------ */
 const PLACEHOLDER_IMG = "/vehicles/home.webp";
 
@@ -15,7 +14,6 @@ const resolveVehicleImage = (img) => {
 
   let v = img;
 
-  // backend might send object/array
   if (typeof v === "object") {
     v =
       v.url ||
@@ -28,21 +26,12 @@ const resolveVehicleImage = (img) => {
 
   if (typeof v !== "string") return PLACEHOLDER_IMG;
 
-  let t = v.trim();
+  const t = v.trim();
   if (!t) return PLACEHOLDER_IMG;
 
-  // 🔥 if it's an HTTP URL, convert to local /vehicles/<fileName>
-  if (t.startsWith("http://") || t.startsWith("https://")) {
-    const lastSeg = t.split(/[\/\\]/).pop() || "";
-    const clean = lastSeg.split("?")[0]; // remove query string if any
-    if (!clean) return PLACEHOLDER_IMG;
-    return `/vehicles/${clean}`;
-  }
-
-  // already a /vehicles path
+  if (t.startsWith("http")) return t;
   if (t.startsWith("/vehicles/")) return t;
 
-  // e.g. "uploads/vehicles/foo.jpg" or "foo"
   let fileName = t.split(/[/\\]/).pop() || t;
   fileName = fileName.replace(/^\/?vehicles\//, "");
   if (!fileName.includes(".")) fileName += ".jpg";
@@ -110,7 +99,7 @@ const BookingsTable = () => {
   const formatDate = (raw) => {
     if (!raw) return "—";
 
-    // already a nice "dd/mm/yyyy" or "mm/dd/yyyy"
+    // If backend already returns a neat string like "10/12/2025" keep it
     if (
       typeof raw === "string" &&
       /^\d{2}[/-]\d{2}[/-]\d{4}$/.test(raw.trim())
@@ -131,7 +120,13 @@ const BookingsTable = () => {
      Build DataGrid rows (support more field names)
   ------------------------------------------------------------ */
   const rows = bookings.map((cur) => {
-    const vd = cur.vehicleDetails || cur.vehicle || cur.car || {};
+    // 👉 AFTER populate() vehicleId will be the full vehicle object
+    const vd =
+      cur.vehicleDetails ||
+      cur.vehicle ||
+      cur.car ||
+      cur.vehicleId || // ⭐ add this
+      {};
 
     let rawImage = null;
     if (Array.isArray(vd.image) && vd.image.length) rawImage = vd.image[0];
@@ -160,18 +155,6 @@ const BookingsTable = () => {
       cur.toDate ||
       cur.end_date;
 
-    // 🔍 helps see what prod is sending (check Netlify console)
-    console.log("[BookingsTable] dropoff fields:", {
-      id: cur._id,
-      dropOffDate: cur.dropOffDate,
-      dropoffDate: cur.dropoffDate,
-      dropoff_date: cur.dropoff_date,
-      drop_off_date: cur.drop_off_date,
-      endDate: cur.endDate,
-      toDate: cur.toDate,
-      end_date: cur.end_date,
-    });
-
     return {
       id: cur._id,
       image: resolveVehicleImage(rawImage),
@@ -184,14 +167,12 @@ const BookingsTable = () => {
         cur.from_location,
 
       Pickup_Date: pickupDateRaw,
-
       Dropoff_Location:
         cur.dropOffLocation ||
         cur.dropoffLocation ||
         cur.dropoff_location ||
         cur.toLocation ||
         cur.to_location,
-
       Dropoff_Date: dropoffDateRaw,
 
       Vehicle_Status: cur.status,
