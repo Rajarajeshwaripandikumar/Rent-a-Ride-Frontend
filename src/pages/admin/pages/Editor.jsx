@@ -33,14 +33,11 @@ const Editor = () => {
       {/* CONTENT CARD */}
       <div
         className="
-          bg-white
-          rounded-2xl
-          border border-gray-200
-          shadow-sm
-          p-5 sm:p-6 lg:p-8
+          bg-white rounded-2xl border border-gray-200
+          shadow-sm p-5 sm:p-6 lg:p-8
         "
       >
-        {/* Rich text editor (TipTap) */}
+        {/* TipTap or custom rich-text editor */}
         <RichTextEditor value={content} onChange={setContent} />
 
         {/* Preview */}
@@ -48,6 +45,7 @@ const Editor = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 mb-2">
             Preview
           </p>
+
           {content ? (
             <div
               className="prose max-w-none text-gray-800 text-sm"
