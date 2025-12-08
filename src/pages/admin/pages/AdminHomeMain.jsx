@@ -68,8 +68,8 @@ const formatCsvDate = (dateStr) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
-// Simple phone formatter for CSV
-const formatPhoneNumber = (phone) => (phone ? String(phone) : "");
+// ✅ Excel-safe phone formatter for CSV
+const formatPhoneNumber = (phone) => (phone ? `="${phone}"` : "");
 
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
