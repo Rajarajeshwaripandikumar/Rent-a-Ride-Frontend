@@ -22,6 +22,9 @@ import { GrStatusGood } from "react-icons/gr";
 import { MdOutlinePending } from "react-icons/md";
 import VendorHeader from "../Components/VendorHeader";
 
+// ✅ use central API wrapper (src/api.js)
+import { api } from "../../../api";
+
 const VendorAllVehicles = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -48,62 +51,39 @@ const VendorAllVehicles = () => {
 
   /* ======================================================
         IMAGE SRC HELPER
-        - handles:
-          • filenames in public/vehicles
-          • values like "vehicles/xyz.jpg"
-          • full URLs (Cloudinary)
   ====================================================== */
   const getVehicleImageSrc = (vehicle) => {
-    let raw = Array.isArray(vehicle.image)
-      ? vehicle.image[0]
-      : vehicle.image;
+    let raw = Array.isArray(vehicle.image) ? vehicle.image[0] : vehicle.image;
 
     if (!raw) return "/placeholder-vehicle.png";
 
-    // already a full URL
-    if (raw.startsWith("http://") || raw.startsWith("https://")) {
-      return raw;
-    }
-
-    // already has /vehicles prefix
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
     if (raw.startsWith("/vehicles/")) return raw;
     if (raw.startsWith("vehicles/")) return `/${raw}`;
 
-    // plain filename in public/vehicles
     return `/vehicles/${raw}`;
   };
 
   /* ======================================================
-        FETCH VENDOR VEHICLES
+        FETCH VENDOR VEHICLES (via api.js)
   ====================================================== */
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/vendor/showVendorVehilces", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ _id }),
-        });
+        // backend reads vendor from JWT, _id is just extra
+        const data = await api.post("/api/vendor/showVendorVehilces", { _id });
 
-        if (!res.ok) {
-          console.error("showVendorVehilces failed:", res.statusText);
-
-          if (res.status === 401 || res.status === 403) {
-            toast.error("Session expired. Please login again.");
-            dispatch(signOut());
-            navigate("/vendorSignin");
-          }
-          return;
-        }
-
-        const data = await res.json();
         const arr = Array.isArray(data) ? data : data.vehicles || [];
-
         dispatch(setVendorVehicles(arr));
         setVendorVehiclesLocal(arr);
-      } catch (error) {
-        console.error("showVendorVehilces error:", error);
+      } catch (err) {
+        console.error("showVendorVehilces error:", err);
+
+        if (err.status === 401 || err.status === 403) {
+          toast.error("Session expired. Please login again.");
+          dispatch(signOut());
+          navigate("/vendorSignin");
+        }
       }
     };
 
@@ -118,19 +98,10 @@ const VendorAllVehicles = () => {
 
     (async () => {
       try {
-        const res = await fetch("/api/vendor/showVendorVehilces", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ _id }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const arr = Array.isArray(data) ? data : data.vehicles || [];
-          dispatch(setVendorVehicles(arr));
-          setVendorVehiclesLocal(arr);
-        }
+        const data = await api.post("/api/vendor/showVendorVehilces", { _id });
+        const arr = Array.isArray(data) ? data : data.vehicles || [];
+        dispatch(setVendorVehicles(arr));
+        setVendorVehiclesLocal(arr);
       } catch (e) {
         console.error("refetch error:", e);
       }
@@ -178,11 +149,9 @@ const VendorAllVehicles = () => {
         );
       },
     },
-
     { field: "registeration_number", headerName: "Register No", width: 150 },
     { field: "company", headerName: "Company", width: 150 },
     { field: "name", headerName: "Name", width: 150 },
-
     {
       field: "status",
       headerName: "Status",
@@ -216,7 +185,6 @@ const VendorAllVehicles = () => {
         );
       },
     },
-
     {
       field: "edit",
       headerName: "Edit",
@@ -231,7 +199,6 @@ const VendorAllVehicles = () => {
         </Button>
       ),
     },
-
     {
       field: "delete",
       headerName: "Delete",
@@ -260,7 +227,7 @@ const VendorAllVehicles = () => {
 
       return {
         id: vehicle._id,
-        image: getVehicleImageSrc(vehicle), // ✅ final src here
+        image: getVehicleImageSrc(vehicle),
         registeration_number: vehicle.registeration_number || "",
         company: vehicle.company,
         name: vehicle.name,
