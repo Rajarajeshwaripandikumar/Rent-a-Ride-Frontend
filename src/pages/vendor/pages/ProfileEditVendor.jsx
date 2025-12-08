@@ -1,6 +1,6 @@
 // src/pages/vendor/pages/ProfileEditVendor.jsx
 import { useState } from "react";
-import Modal from "../../../components/CustomModal"; // ✅ from src/components/CustomModal
+import Modal from "../../../components/CustomModal";
 import { TbEditCircle } from "react-icons/tb";
 import TextField from "@mui/material/TextField";
 import { useDispatch, useSelector } from "react-redux";
@@ -8,13 +8,16 @@ import {
   editUserProfile,
   setUpdated,
   signInSuccess,
-} from "../../../redux/user/userSlice"; // ✅ from src/redux/user/userSlice
+} from "../../../redux/user/userSlice";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
-import defaultAvatar from "../../../assets/default-avatar.png"; // ✅ from src/assets
+import defaultAvatar from "../../../assets/default-avatar.png";
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
+// ✅ use centralized API helper
+import { api } from "../../../api";
+
+const API_BASE_URL = api.baseUrl || "";
 
 const getProfileImageUrl = (raw) => {
   if (!raw) return defaultAvatar;
@@ -56,7 +59,7 @@ const ProfileEditVendor = () => {
     try {
       setSaving(true);
 
-      // remove empty-string fields (for optional password fields, etc.)
+      // remove empty-string fields
       const filteredValues = {};
       Object.entries(formValues || {}).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== "") {
@@ -64,6 +67,16 @@ const ProfileEditVendor = () => {
         }
       });
 
+      // optimistic update in Redux
+      try {
+        dispatch(editUserProfile({ ...(filteredValues || {}) }));
+      } catch {
+        // ignore
+      }
+
+      // =======================
+      //  WITH IMAGE (FormData)
+      // =======================
       if (file) {
         const formData = new FormData();
         Object.entries(filteredValues).forEach(([k, v]) => {
@@ -71,18 +84,18 @@ const ProfileEditVendor = () => {
         });
         formData.append("image", file);
 
-        // optimistic update into user slice
-        try {
-          dispatch(editUserProfile({ ...(filteredValues || {}) }));
-        } catch (e) {
-          // ignore
-        }
+        const token = localStorage.getItem("accessToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const res = await fetch(`/api/user/editUserProfile/${id}`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
+        const res = await fetch(
+          `${API_BASE_URL}/api/user/editUserProfile/${id}`,
+          {
+            method: "POST",
+            body: formData,
+            headers,
+            credentials: "include",
+          }
+        );
 
         if (!res.ok) {
           const text = await res.text();
@@ -95,33 +108,25 @@ const ProfileEditVendor = () => {
         dispatch(setUpdated(true));
         toast.success("Vendor profile updated successfully");
         return { success: true };
-      } else {
-        const payload = { ...filteredValues };
-        dispatch(editUserProfile({ ...payload }));
-
-        const res = await fetch(`/api/user/editUserProfile/${id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ formData: payload }),
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Update failed");
-        }
-
-        const data = await res.json();
-        const returnedUser = data?.currentUser || data || {};
-        if (returnedUser) {
-          dispatch(signInSuccess(returnedUser));
-        }
-        dispatch(setUpdated(true));
-        toast.success("Vendor profile updated successfully");
-        return { success: true };
       }
+
+      // =======================
+      //  WITHOUT IMAGE (JSON)
+      // =======================
+      const payload = { ...filteredValues };
+
+      const data = await api.post(
+        `/api/user/editUserProfile/${id}`,
+        { formData: payload } // your backend expects formData key
+      );
+
+      const returnedUser = data?.currentUser || data || {};
+      if (returnedUser) {
+        dispatch(signInSuccess(returnedUser));
+      }
+      dispatch(setUpdated(true));
+      toast.success("Vendor profile updated successfully");
+      return { success: true };
     } catch (error) {
       console.error("Vendor profile update error:", error);
       toast.error(error?.message || "Failed to update vendor profile");
@@ -179,7 +184,7 @@ const ProfileEditVendor = () => {
 
   return (
     <>
-      {/* Trigger button – same style as admin/user edit button */}
+      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setIsModalOpen(true)}
