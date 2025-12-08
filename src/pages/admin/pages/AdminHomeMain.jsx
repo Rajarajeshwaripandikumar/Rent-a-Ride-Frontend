@@ -1,7 +1,8 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
-import { api } from "../api"; // ✅ central API wrapper
+import { api } from "../../../api";
+ // ✅ central API wrapper
 
 const STATS_URL = "/api/admin/stats";
 const STATS_REPORT_URL = "/api/admin/stats/report/csv";
