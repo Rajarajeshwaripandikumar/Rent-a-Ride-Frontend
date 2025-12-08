@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { FiDownload } from "react-icons/fi";
 import { api } from "../../../api"; // 👈 FIXED: correct path + named import
+import { useNavigate } from "react-router-dom";
 
 function VendorHomeMain() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +42,9 @@ function VendorHomeMain() {
         if (!cancelled) {
           if (err.status === 403) {
             setError("You do not have permission to view these stats.");
+          } else if (err.status === 401) {
+            setError("Session expired. Please log in again.");
+            navigate("/login");  // Redirect to login if token is invalid
           } else {
             setError(err.message || "Failed to load stats");
           }
@@ -55,7 +60,7 @@ function VendorHomeMain() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   // 📁 CSV download handler – FRONTEND ONLY (no admin route)
   const handleDownloadReport = () => {
@@ -138,11 +143,7 @@ function VendorHomeMain() {
             text-xs md:text-sm
             font-medium
             transition
-            ${
-              downloading
-                ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                : "bg-[#0071DC] hover:bg-[#0654BA] text-white shadow-sm"
-            }
+            ${downloading ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-[#0071DC] hover:bg-[#0654BA] text-white shadow-sm"}
           `}
         >
           <FiDownload className="text-sm md:text-base" />
