@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
 
-// ✅ use central API wrapper (src/api.js)
+// central API wrapper
 import { api } from "../../../api";
 
 const Customers = () => {
@@ -11,16 +11,11 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // Fetch customers (role: user)
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
 
-      // api.get automatically:
-      // - picks correct base URL
-      // - sends Authorization header (adminToken/accessToken)
-      // - sends cookies: credentials: "include"
       const data = await api.get("/api/admin/users");
 
       const list = Array.isArray(data?.users) ? data.users : [];
@@ -38,7 +33,6 @@ const Customers = () => {
     fetchCustomers();
   }, []);
 
-  // Format date
   const formatDate = (date) => {
     if (!date) return "—";
     const d = new Date(date);
@@ -48,7 +42,6 @@ const Customers = () => {
     ).padStart(2, "0")}/${d.getFullYear()}`;
   };
 
-  // Table columns
   const columns = [
     {
       field: "profilePicture",
@@ -67,11 +60,31 @@ const Customers = () => {
       ),
     },
     { field: "username", headerName: "Name", width: 180 },
-    { field: "email", headerName: "Email", width: 220 },
+
+    // ★★★★★ FIXED EMAIL FULL VISIBILITY ★★★★★
+    {
+      field: "email",
+      headerName: "Email",
+      width: 280,
+      renderCell: (params) => (
+        <div
+          title={params.value} // full email on hover
+          style={{
+            maxWidth: "260px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {params.value}
+        </div>
+      ),
+    },
+
     {
       field: "phoneNumber",
       headerName: "Phone",
-      width: 140,
+      width: 160,
       renderCell: (params) => params.value || "—",
     },
     {
@@ -82,7 +95,6 @@ const Customers = () => {
     },
   ];
 
-  // Table rows
   const rows = customers.map((cust) => ({
     id: cust._id,
     username: cust.username,
@@ -94,7 +106,6 @@ const Customers = () => {
 
   return (
     <div className="mt-6 px-4 sm:px-6 lg:px-8 select-none">
-      {/* PAGE HEADER */}
       <div className="mb-6">
         <span
           className="
@@ -117,7 +128,6 @@ const Customers = () => {
         </p>
       </div>
 
-      {/* CONTENT CARD */}
       <div
         className="
           bg-white
@@ -131,7 +141,6 @@ const Customers = () => {
           <p className="text-xs text-red-500 mb-3">{errorMsg}</p>
         )}
 
-        {/* DATA TABLE */}
         <Box sx={{ width: "100%" }}>
           <DataGrid
             rows={rows}
