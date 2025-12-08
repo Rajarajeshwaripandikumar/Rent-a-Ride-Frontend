@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
 // ⬇️ one more "../" because we're inside OrdersComponents
-import { api } from "../../../../api";
+import { api } from "../../../api";
 
 /* -----------------------------------------------------------
    Image resolver -> prefer images from public/vehicles/*
