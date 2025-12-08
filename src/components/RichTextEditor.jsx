@@ -10,9 +10,7 @@ const RichTextEditor = ({ value, onChange }) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
+        heading: { levels: [1, 2, 3] },
       }),
       Underline,
       Link.configure({
@@ -25,57 +23,59 @@ const RichTextEditor = ({ value, onChange }) => {
     ],
     content: value || "",
     onUpdate({ editor }) {
-      const html = editor.getHTML();
-      onChange && onChange(html);
+      onChange?.(editor.getHTML());
     },
   });
 
-  // keep external `value` in sync (e.g., when loading existing content)
   useEffect(() => {
     if (!editor) return;
-    const current = editor.getHTML();
-    if (value != null && value !== current) {
-      editor.commands.setContent(value, false);
+    const html = editor.getHTML();
+    if (value !== html) {
+      editor.commands.setContent(value || "", false);
     }
   }, [value, editor]);
 
   if (!editor) return null;
 
   const toggleLink = () => {
-    const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("Enter URL", previousUrl || "https://");
+    const prev = editor.getAttributes("link").href;
+    const url = window.prompt("Enter URL", prev || "https://");
 
-    // cancel
     if (url === null) return;
-
-    // empty = unset
     if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      editor.chain().focus().unsetLink().run();
       return;
     }
 
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
-      .setLink({ href: url })
-      .run();
+    editor.chain().focus().setLink({ href: url }).run();
   };
 
+  const button = (label, active, onClick, extra = "") => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        px-2 py-1 rounded text-xs border border-transparent
+        ${active ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"}
+        ${extra}
+      `}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* Toolbar - mimicking your ReactQuill setup */}
+    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b bg-gray-50 text-sm">
-        {/* Headers 1–3 */}
+
+        {/* Heading selector */}
         <select
-          className="border border-gray-300 rounded px-1 py-[3px] text-xs"
+          className="border border-gray-300 rounded px-1 py-1 text-xs bg-white"
           onChange={(e) => {
             const level = Number(e.target.value);
-            if (!level) {
-              editor.chain().focus().setParagraph().run();
-            } else {
-              editor.chain().focus().toggleHeading({ level }).run();
-            }
+            if (!level) editor.chain().focus().setParagraph().run();
+            else editor.chain().focus().toggleHeading({ level }).run();
           }}
           value={
             editor.isActive("heading", { level: 1 })
@@ -94,125 +94,57 @@ const RichTextEditor = ({ value, onChange }) => {
         </select>
 
         {/* Bold / Italic / Underline / Strike */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("bold") ? "bg-gray-200 font-semibold" : ""
-          }`}
-        >
-          B
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("italic") ? "bg-gray-200 italic" : ""
-          }`}
-        >
-          I
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("underline") ? "bg-gray-200 underline" : ""
-          }`}
-        >
-          U
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("strike") ? "bg-gray-200 line-through" : ""
-          }`}
-        >
-          S
-        </button>
+        {button("B", editor.isActive("bold"), () =>
+          editor.chain().focus().toggleBold().run()
+        )}
+        {button("I", editor.isActive("italic"), () =>
+          editor.chain().focus().toggleItalic().run()
+        )}
+        {button("U", editor.isActive("underline"), () =>
+          editor.chain().focus().toggleUnderline().run()
+        )}
+        {button("S", editor.isActive("strike"), () =>
+          editor.chain().focus().toggleStrike().run()
+        )}
 
         {/* Ordered / Bullet list */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("orderedList") ? "bg-gray-200" : ""
-          }`}
-        >
-          1.
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("bulletList") ? "bg-gray-200" : ""
-          }`}
-        >
-          •
-        </button>
+        {button("1.", editor.isActive("orderedList"), () =>
+          editor.chain().focus().toggleOrderedList().run()
+        )}
+        {button("•", editor.isActive("bulletList"), () =>
+          editor.chain().focus().toggleBulletList().run()
+        )}
 
-        {/* Alignment */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive({ textAlign: "left" }) ? "bg-gray-200" : ""
-          }`}
-        >
-          L
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive({ textAlign: "center" }) ? "bg-gray-200" : ""
-          }`}
-        >
-          C
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive({ textAlign: "right" }) ? "bg-gray-200" : ""
-          }`}
-        >
-          R
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive({ textAlign: "justify" }) ? "bg-gray-200" : ""
-          }`}
-        >
-          J
-        </button>
+        {/* Text Alignment */}
+        {button("L", editor.isActive({ textAlign: "left" }), () =>
+          editor.chain().focus().setTextAlign("left").run()
+        )}
+        {button("C", editor.isActive({ textAlign: "center" }), () =>
+          editor.chain().focus().setTextAlign("center").run()
+        )}
+        {button("R", editor.isActive({ textAlign: "right" }), () =>
+          editor.chain().focus().setTextAlign("right").run()
+        )}
+        {button("J", editor.isActive({ textAlign: "justify" }), () =>
+          editor.chain().focus().setTextAlign("justify").run()
+        )}
 
-        {/* Link */}
-        <button
-          type="button"
-          onClick={toggleLink}
-          className={`px-2 py-1 rounded text-xs ${
-            editor.isActive("link") ? "bg-gray-200" : ""
-          }`}
-        >
-          Link
-        </button>
+        {/* Link button */}
+        {button("Link", editor.isActive("link"), toggleLink)}
 
-        {/* Clean (clear formatting) */}
+        {/* Clean formatting */}
         <button
           type="button"
           onClick={() =>
             editor.chain().focus().clearNodes().unsetAllMarks().run()
           }
-          className="ml-auto px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100"
+          className="ml-auto px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-200"
         >
           Clean
         </button>
       </div>
 
-      {/* Content area: ~220px like your old ReactQuill */}
+      {/* Content */}
       <div className="px-3 py-2 bg-white">
         <div className="min-h-[220px] max-h-[280px] overflow-y-auto">
           <EditorContent
