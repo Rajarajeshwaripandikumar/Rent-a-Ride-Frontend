@@ -1,5 +1,3 @@
-// src/pages/vendor/pages/VendorHomeMain.jsx
-
 import { useEffect, useState } from "react";
 import { FiDownload } from "react-icons/fi";
 import { api } from "../../../api"; // 👈 FIXED: correct path + named import
@@ -18,8 +16,21 @@ function VendorHomeMain() {
         setLoading(true);
         setError(null);
 
+        const token = localStorage.getItem("accessToken"); // Get token from localStorage
+
+        if (!token) {
+          setError("No token found, please log in.");
+          return;
+        }
+
+        console.log("Access Token:", token);  // Log token for debugging
+
         // ✅ Uses api.js → correct base URL + Authorization header + credentials
-        const json = await api.get("/api/vendor/stats");
+        const json = await api.get("/api/vendor/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`, // Add token to headers
+          },
+        });
 
         if (!cancelled) {
           // controller returns { success, data: { ... } }
@@ -27,7 +38,11 @@ function VendorHomeMain() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Failed to load stats");
+          if (err.status === 403) {
+            setError("You do not have permission to view these stats.");
+          } else {
+            setError(err.message || "Failed to load stats");
+          }
         }
       } finally {
         if (!cancelled) {
