@@ -1,7 +1,7 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
-import { api } from "../api"; // ✅ use central API helper
+import { api } from "../api"; // ✅ correct import for your api.js
 
 const STATS_URL = "/api/admin/stats";
 const STATS_REPORT_URL = "/api/admin/stats/report/csv";
@@ -33,12 +33,14 @@ const formatDateTime = (dateStr) => {
 
 /* ---------- CSV HELPERS (frontend vendor CSV) ---------- */
 
+// escape for CSV cell
 const csvEscape = (value) => {
   if (value === null || value === undefined) return "";
   const s = String(value).replace(/"/g, '""');
   return `"${s}"`;
 };
 
+// Excel-friendly date for CSV
 const formatCsvDate = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -61,12 +63,14 @@ const AdminHomeMain = () => {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
+  // Users & Vendors state
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [uvLoading, setUvLoading] = useState(true);
   const [uvError, setUvError] = useState(null);
   const [selectedTab, setSelectedTab] = useState("users");
 
+  // Vendor edit state
   const [editingVendorId, setEditingVendorId] = useState(null);
   const [vendorForm, setVendorForm] = useState({
     username: "",
@@ -82,11 +86,11 @@ const AdminHomeMain = () => {
       setLoading(true);
       setError(null);
       try {
-        // api.get returns parsed data directly
-        const data = await api.get(STATS_URL);
+        const data = await api.get(STATS_URL); // ✅ uses src/api.js
 
         if (!mounted) return;
 
+        // 🔹 Normalize salesOverview into { labels, series } for LineChart
         let normalizedSalesOverview;
 
         if (Array.isArray(data.salesOverview)) {
@@ -275,7 +279,6 @@ const AdminHomeMain = () => {
   // ---------- DOWNLOAD ADMIN STATS CSV ----------
   const handleDownloadStatsReport = async () => {
     try {
-      // api.raw -> our request() helper, which returns text for CSV
       const csvText = await api.raw(STATS_REPORT_URL, {
         method: "GET",
         headers: { Accept: "text/csv" },
@@ -307,8 +310,18 @@ const AdminHomeMain = () => {
 
   return (
     <div className="mt-6 md:mt-8 px-4 sm:px-6 lg:px-8 select-none">
-      {/* HEADER */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
+      {/* SIMPLE PAGE HEADER (no icons) */}
+      <div
+        className="
+          bg-white
+          rounded-2xl
+          border border-gray-200
+          shadow-sm
+          px-4 sm:px-6 lg:px-8
+          py-4
+          flex flex-wrap items-center justify-between gap-3
+        "
+      >
         <div>
           <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold uppercase tracking-wide border border-yellow-300 rounded-md bg-[#FFEFB5] text-slate-800">
             Admin Panel
@@ -320,19 +333,33 @@ const AdminHomeMain = () => {
         </div>
 
         <div className="text-xs sm:text-sm text-slate-500">
-          <span className="font-medium text-slate-700">Role:</span> Super Admin
+          <span className="font-medium text-slate-700">Role:</span>{" "}
+          Super Admin
         </div>
       </div>
 
       {/* TOP STATS ROW */}
       <div className="mt-6 flex flex-wrap lg:flex-nowrap justify-center lg:justify-between items-stretch gap-4">
-        {/* Earnings */}
-        <div className="w-full lg:w-80 rounded-2xl bg-white border border-gray-200 shadow-sm p-6 flex flex-col justify-between">
+        {/* Earnings card */}
+        <div
+          className="
+            w-full lg:w-80
+            rounded-2xl
+            bg-white
+            border border-gray-200
+            shadow-sm
+            p-6
+            flex flex-col justify-between
+          "
+        >
           <div>
-            <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
+            <span className="inline-flex	items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
               Earnings
             </span>
-            <p className="text-xs text-slate-500 mt-2">Total platform earnings</p>
+
+            <p className="text-xs text-slate-500 mt-2">
+              Total platform earnings
+            </p>
 
             {loading ? (
               <p className="text-2xl font-semibold text-slate-300 mt-3 animate-pulse">
@@ -354,7 +381,20 @@ const AdminHomeMain = () => {
           <div className="mt-5">
             <button
               onClick={handleDownloadStatsReport}
-              className="px-6 py-3 rounded-full bg-[#0071DC] text-white text-sm font-semibold shadow-md hover:bg-[#0654BA] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0071DC]"
+              className="
+                px-6 py-3
+                rounded-full
+                bg-[#0071DC]
+                text-white
+                text-sm
+                font-semibold
+                shadow-md
+                hover:bg-[#0654BA]
+                focus:outline-none
+                focus:ring-2
+                focus:ring-offset-2
+                focus:ring-[#0071DC]
+              "
             >
               Download report
             </button>
@@ -400,8 +440,17 @@ const AdminHomeMain = () => {
         </div>
       </div>
 
-      {/* USERS & VENDORS */}
-      <div className="mt-8 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      {/* USERS & VENDORS MANAGEMENT SECTION */}
+      <div
+        className="
+          mt-8
+          bg-white
+          rounded-2xl
+          border border-gray-200
+          shadow-sm
+          p-6
+        "
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
@@ -416,6 +465,7 @@ const AdminHomeMain = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Tabs */}
             <div className="inline-flex rounded-full bg-slate-100 p-1 text-xs">
               <button
                 onClick={() => setSelectedTab("users")}
@@ -439,6 +489,7 @@ const AdminHomeMain = () => {
               </button>
             </div>
 
+            {/* Download CSV for vendors */}
             {selectedTab === "vendors" && (
               <button
                 onClick={handleDownloadCsv}
@@ -501,6 +552,7 @@ const AdminHomeMain = () => {
                       key={item._id}
                       className="border-t border-slate-100 hover:bg-slate-50/70"
                     >
+                      {/* NAME / USERNAME */}
                       <td className="px-4 py-3">
                         {selectedTab === "vendors" && isEditing ? (
                           <input
@@ -518,6 +570,7 @@ const AdminHomeMain = () => {
                         )}
                       </td>
 
+                      {/* EMAIL */}
                       <td className="px-4 py-3">
                         {selectedTab === "vendors" && isEditing ? (
                           <input
@@ -535,6 +588,7 @@ const AdminHomeMain = () => {
                         )}
                       </td>
 
+                      {/* PHONE */}
                       <td className="px-4 py-3">
                         {selectedTab === "vendors" && isEditing ? (
                           <input
@@ -552,6 +606,7 @@ const AdminHomeMain = () => {
                         )}
                       </td>
 
+                      {/* ACTIONS FOR VENDORS */}
                       {selectedTab === "vendors" && (
                         <td className="px-4 py-3">
                           {isEditing ? (
@@ -591,7 +646,17 @@ const AdminHomeMain = () => {
       {/* BOTTOM ROW: Transactions + Chart */}
       <div className="mt-8 flex flex-wrap xl:flex-nowrap gap-6 justify-center">
         {/* Recent Transactions */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 w-full max-w-md">
+        <div
+          className="
+            bg-white
+            rounded-2xl
+            border border-gray-200
+            shadow-sm
+            p-6
+            w-full
+            max-w-md
+          "
+        >
           <div className="flex justify-between items-center gap-2 mb-2">
             <div>
               <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
@@ -660,8 +725,18 @@ const AdminHomeMain = () => {
           </div>
         </div>
 
-        {/* Sales Overview */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 w-full xl:flex-1">
+        {/* Sales Overview line chart */}
+        <div
+          className="
+            bg-white
+            rounded-2xl
+            border border-gray-200
+            shadow-sm
+            p-6
+            w-full
+            xl:flex-1
+          "
+        >
           <div className="mb-3">
             <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
               Analytics
