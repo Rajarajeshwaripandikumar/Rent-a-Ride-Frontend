@@ -1,16 +1,17 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
+import { api } from "../api"; // ✅ central API wrapper
 
-const STATS_URL = "/api/admin/stats"; // proxied by vite -> backend
-const STATS_REPORT_URL = "/api/admin/stats/report/csv"; // ✅ NEW
+const STATS_URL = "/api/admin/stats";
+const STATS_REPORT_URL = "/api/admin/stats/report/csv";
 const USERS_URL = "/api/admin/users";
 const VENDORS_URL = "/api/admin/vendors";
 const VENDORS_REPORT_URL = "/api/admin/vendors/report/csv";
 
-// 🔹 Helper: attach admin JWT from localStorage
+// 🔹 Helper: attach admin JWT from localStorage (use accessToken now)
 const getAuthHeaders = (extra = {}) => {
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("accessToken");
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
@@ -68,18 +69,10 @@ const AdminHomeMain = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(STATS_URL, {
-          method: "GET",
-          credentials: "include",
+        // ✅ use api.get – it attaches baseUrl + JSON headers + credentials
+        const data = await api.get(STATS_URL, {
           headers: getAuthHeaders(),
         });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Status ${res.status}`);
-        }
-
-        const data = await res.json();
 
         if (!mounted) return;
 
@@ -146,30 +139,10 @@ const AdminHomeMain = () => {
         setUvLoading(true);
         setUvError(null);
 
-        const [usersRes, vendorsRes] = await Promise.all([
-          fetch(USERS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
-          fetch(VENDORS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
+        const [usersData, vendorsData] = await Promise.all([
+          api.get(USERS_URL, { headers: getAuthHeaders() }),
+          api.get(VENDORS_URL, { headers: getAuthHeaders() }),
         ]);
-
-        if (!usersRes.ok) {
-          const txt = await usersRes.text();
-          throw new Error(txt || "Failed to fetch users");
-        }
-        if (!vendorsRes.ok) {
-          const txt = await vendorsRes.text();
-          throw new Error(txt || "Failed to fetch vendors");
-        }
-
-        const usersData = await usersRes.json();
-        const vendorsData = await vendorsRes.json();
 
         if (!mounted) return;
 
@@ -219,7 +192,9 @@ const AdminHomeMain = () => {
   const saveVendor = async () => {
     if (!editingVendorId) return;
     try {
-      const res = await fetch(`/api/admin/vendors/${editingVendorId}`, {
+      // still fine to use fetch here because body is JSON,
+      // but use api.baseUrl + getAuthHeaders for consistency
+      const res = await fetch(`${api.baseUrl}/api/admin/vendors/${editingVendorId}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
@@ -252,7 +227,7 @@ const AdminHomeMain = () => {
   // ---------- DOWNLOAD VENDOR CSV ----------
   const handleDownloadCsv = async () => {
     try {
-      const res = await fetch(VENDORS_REPORT_URL, {
+      const res = await fetch(`${api.baseUrl}${VENDORS_REPORT_URL}`, {
         method: "GET",
         credentials: "include",
         headers: getAuthHeaders(),
@@ -281,7 +256,7 @@ const AdminHomeMain = () => {
   // ✅ ---------- DOWNLOAD ADMIN STATS CSV (EARNINGS CARD) ----------
   const handleDownloadStatsReport = async () => {
     try {
-      const res = await fetch(STATS_REPORT_URL, {
+      const res = await fetch(`${api.baseUrl}${STATS_REPORT_URL}`, {
         method: "GET",
         credentials: "include",
         headers: getAuthHeaders(),
@@ -380,27 +355,26 @@ const AdminHomeMain = () => {
           </div>
 
           <div className="mt-5">
-  <button
-    onClick={handleDownloadStatsReport}
-    className="
-      px-6 py-3
-      rounded-full
-      bg-[#0071DC]
-      text-white
-      text-sm
-      font-semibold
-      shadow-md
-      hover:bg-[#0654BA]
-      focus:outline-none
-      focus:ring-2
-      focus:ring-offset-2
-      focus:ring-[#0071DC]
-    "
-  >
-    Download report
-  </button>
-</div>
-
+            <button
+              onClick={handleDownloadStatsReport}
+              className="
+                px-6 py-3
+                rounded-full
+                bg-[#0071DC]
+                text-white
+                text-sm
+                font-semibold
+                shadow-md
+                hover:bg-[#0654BA]
+                focus:outline-none
+                focus:ring-2
+                focus:ring-offset-2
+                focus:ring-[#0071DC]
+              "
+            >
+              Download report
+            </button>
+          </div>
         </div>
 
         {/* Small stat cards */}
@@ -680,7 +654,6 @@ const AdminHomeMain = () => {
             ) : (
               <ul className="space-y-3">
                 {stats.recentTransactions.slice(0, 5).map((t, index) => {
-                  // 🔹 Nice display instead of raw booking id
                   const bookingLabel =
                     t.bookingCode ||
                     t.bookingId ||
