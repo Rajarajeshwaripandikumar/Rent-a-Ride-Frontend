@@ -11,12 +11,22 @@ const RichTextEditor = ({ value, onChange }) => {
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+
+        // 🔐 IMPORTANT: prevent StarterKit from registering its own link/underline
+        link: false,
+        underline: false,
       }),
+
+      // ✅ our single underline extension
       Underline,
+
+      // ✅ our single link extension
       Link.configure({
         openOnClick: false,
         linkOnPaste: true,
       }),
+
+      // ✅ text alignment
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
