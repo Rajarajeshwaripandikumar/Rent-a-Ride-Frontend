@@ -53,7 +53,7 @@ const toCsv = (rows) =>
     )
     .join("\r\n");
 
-// Excel-friendly date for CSV
+// 🔹 Excel-friendly date for CSV (as text, never ########)
 const formatCsvDate = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -65,7 +65,10 @@ const formatCsvDate = (dateStr) => {
   const hh = pad(d.getHours());
   const mi = pad(d.getMinutes());
   const ss = pad(d.getSeconds());
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+
+  const formatted = `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  // ✅ Excel-safe text: stops auto date formatting / ########
+  return `="${formatted}"`;
 };
 
 // ✅ Excel-safe phone formatter for CSV
