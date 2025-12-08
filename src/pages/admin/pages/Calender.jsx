@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MdChevronLeft, MdChevronRight } from "react-icons/md";
+// ✅ central API helper
+import { api } from "../../../api";
 
 const BOOKINGS_URL = "/api/admin/allBookings";
 
@@ -27,20 +29,10 @@ const Calender = () => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const res = await fetch(BOOKINGS_URL, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
 
-        if (!res.ok) {
-          console.warn("[Calendar] allBookings failed", res.status);
-          setBookings([]);
-          setLoading(false);
-          return;
-        }
+        // ✅ uses API_BASE_URL + Authorization + credentials: "include"
+        const raw = await api.get(BOOKINGS_URL);
 
-        const raw = await res.json().catch(() => null);
         let list = [];
 
         if (Array.isArray(raw)) list = raw;
