@@ -1,3 +1,4 @@
+// src/pages/vendor/pages/VendorAllVehicles.jsx
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -22,7 +23,7 @@ import { GrStatusGood } from "react-icons/gr";
 import { MdOutlinePending } from "react-icons/md";
 import VendorHeader from "../Components/VendorHeader";
 
-// ✅ use central API wrapper (src/api.js)
+// ✅ central API wrapper
 import { api } from "../../../api";
 
 const VendorAllVehicles = () => {
@@ -71,13 +72,13 @@ const VendorAllVehicles = () => {
     const fetchData = async () => {
       try {
         // backend reads vendor from JWT, _id is just extra
-        const data = await api.post("/api/vendor/showVendorVehilces", { _id });
+        const data = await api.post("/api/vendor/showVendorVehicles", { _id });
 
         const arr = Array.isArray(data) ? data : data.vehicles || [];
         dispatch(setVendorVehicles(arr));
         setVendorVehiclesLocal(arr);
       } catch (err) {
-        console.error("showVendorVehilces error:", err);
+        console.error("showVendorVehicles error:", err);
 
         if (err.status === 401 || err.status === 403) {
           toast.error("Session expired. Please login again.");
@@ -98,7 +99,7 @@ const VendorAllVehicles = () => {
 
     (async () => {
       try {
-        const data = await api.post("/api/vendor/showVendorVehilces", { _id });
+        const data = await api.post("/api/vendor/showVendorVehicles", { _id });
         const arr = Array.isArray(data) ? data : data.vehicles || [];
         dispatch(setVendorVehicles(arr));
         setVendorVehiclesLocal(arr);
