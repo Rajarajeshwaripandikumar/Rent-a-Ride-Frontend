@@ -1,7 +1,7 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
-import { api } from "../../../api"; // ✅ correct import for your api.js
+import { api } from "../../../api"; // ✅ uses src/api.js
 
 const STATS_URL = "/api/admin/stats";
 const STATS_REPORT_URL = "/api/admin/stats/report/csv";
@@ -55,8 +55,12 @@ const formatCsvDate = (dateStr) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
-// Excel-safe phone (no 7.81E+09 and no trimming 0s)
-const formatPhoneNumber = (phone) => (phone ? `="${phone}"` : "");
+// Excel-safe phone (treat as text, avoid 7.81E+09, keep 0s)
+const formatPhoneNumber = (phone) => {
+  if (!phone) return "";
+  // Leading ' tells Excel "this is text" but it won't show the '
+  return `'${phone}`;
+};
 
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
@@ -244,7 +248,12 @@ const AdminHomeMain = () => {
       rows.push(["Username", "Email", "Phone", "IsVendor", "CreatedAt"]);
 
       vendors.forEach((v) => {
-        const phoneCell = formatPhoneNumber(v.phoneNumber);
+        // ✅ robust phone field reading
+        const rawPhone =
+          v.phoneNumber || v.phone || v.mobile || v.contactNumber || "";
+
+        const phoneCell = formatPhoneNumber(rawPhone);
+
         rows.push([
           v.username || "",
           v.email || "",
@@ -547,6 +556,14 @@ const AdminHomeMain = () => {
                     selectedTab === "vendors" &&
                     editingVendorId === item._id;
 
+                  // ✅ robust phone for display
+                  const displayPhone =
+                    item.phoneNumber ||
+                    item.phone ||
+                    item.mobile ||
+                    item.contactNumber ||
+                    "-";
+
                   return (
                     <tr
                       key={item._id}
@@ -602,7 +619,7 @@ const AdminHomeMain = () => {
                             className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#0071DC]"
                           />
                         ) : (
-                          item.phoneNumber || "-"
+                          displayPhone
                         )}
                       </td>
 
