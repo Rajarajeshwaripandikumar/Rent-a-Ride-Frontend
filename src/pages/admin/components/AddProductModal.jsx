@@ -26,54 +26,31 @@ import {
   setadminCrudError,
 } from "../../../redux/adminSlices/adminDashboardSlice/StatusSlice";
 
-// Helper to fetch model/location/district data
+// ⭐ Use central API wrapper
+import { api } from "../../../api";
+
+// ============================================================
+// FETCH ALL MODEL / BRAND / LOCATION / DISTRICT DATA
+// ============================================================
 export const fetchModelData = async (dispatch) => {
   try {
-    const res = await fetch("/api/admin/getVehicleModels", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    if (res.ok) {
-      const data = await res.json();
+    const data = await api.get("/api/admin/getVehicleModels");
 
-      // models
-      const models = data
-        .filter((cur) => cur.type === "car")
-        .map((cur) => cur.model);
-      dispatch(setModelData(models));
+    const models = data.filter(c => c.type === "car").map(c => c.model);
+    const brands = data.filter(c => c.type === "car").map(c => c.brand);
+    const uniqueBrands = [...new Set(brands)];
 
-      // brands
-      const brand = data
-        .filter((cur) => cur.type === "car")
-        .map((cur) => cur.brand);
-      const uniqueBrand = brand.filter((cur, index) => brand.indexOf(cur) === index);
-      dispatch(setCompanyData(uniqueBrand));
+    const locations = data.filter(c => c.type === "location").map(c => c.location);
+    const districts = data.filter(c => c.type === "location").map(c => c.district);
+    const uniqueDistricts = [...new Set(districts)];
 
-      // locations
-      const locations = data
-        .filter((cur) => cur.type === "location")
-        .map((cur) => cur.location);
-      dispatch(setLocationData(locations));
-
-      // districts
-      const districts = data
-        .filter((cur) => cur.type === "location")
-        .map((cur) => cur.district);
-      const uniqueDistricts = districts.filter(
-        (cur, idx) => districts.indexOf(cur) === idx
-      );
-      dispatch(setDistrictData(uniqueDistricts));
-
-      // whole location data
-      const wholeData = data.filter((cur) => cur.type === "location");
-      dispatch(setWholeData(wholeData));
-    } else {
-      return "no data found";
-    }
-  } catch (error) {
-    console.log(error);
+    dispatch(setModelData(models));
+    dispatch(setCompanyData(uniqueBrands));
+    dispatch(setLocationData(locations));
+    dispatch(setDistrictData(uniqueDistricts));
+    dispatch(setWholeData(data.filter(c => c.type === "location")));
+  } catch (err) {
+    console.error("Vehicle model fetch failed:", err);
   }
 };
 
@@ -93,72 +70,66 @@ const AddProductModal = () => {
     dispatch(addVehicleClicked(true));
   }, [dispatch]);
 
-  const onSubmit = async (addData) => {
+  // ============================================================
+  // SUBMIT VEHICLE FORM (NOW USING api.post WITH FORMDATA)
+  // ============================================================
+  const onSubmit = async (form) => {
     try {
-      const img = [];
-      for (let i = 0; i < (addData.image?.length || 0); i++) {
-        img.push(addData.image[i]);
-      }
+      const fd = new FormData();
 
-      const formData = new FormData();
-      formData.append("registeration_number", addData.registeration_number);
-      formData.append("company", addData.company);
-      img.forEach((file) => {
-        formData.append("image", file);
-      });
-      formData.append("name", addData.name);
-      formData.append("model", addData.model);
-      formData.append("title", addData.title);
-      formData.append("base_package", addData.base_package);
-      formData.append("price", addData.price);
-      formData.append("description", addData.description);
-      formData.append("year_made", addData.year_made);
-      formData.append("fuel_type", addData.fuelType);
-      formData.append("seat", addData.Seats);
-      formData.append("transmition_type", addData.transmitionType);
+      // Basic fields
+      fd.append("registeration_number", form.registeration_number);
+      fd.append("company", form.company);
+      fd.append("name", form.name);
+      fd.append("model", form.model);
+      fd.append("title", form.title || "");
+      fd.append("base_package", form.base_package || "");
+      fd.append("price", form.price || "");
+      fd.append("description", form.description || "");
+      fd.append("year_made", form.year_made);
+      fd.append("fuel_type", form.fuelType);
+      fd.append("seat", form.Seats);
+      fd.append("transmition_type", form.transmitionType);
+      fd.append("car_type", form.carType);
+      fd.append("location", form.vehicleLocation);
+      fd.append("district", form.vehicleDistrict);
 
-      if (addData.insurance_end_date?.$d) {
-        formData.append("insurance_end_date", addData.insurance_end_date.$d);
-      }
-      if (addData.Registeration_end_date?.$d) {
-        formData.append("registeration_end_date", addData.Registeration_end_date.$d);
-      }
-      if (addData.polution_end_date?.$d) {
-        formData.append("polution_end_date", addData.polution_end_date.$d);
-      }
+      // Dates
+      if (form.insurance_end_date?.$d)
+        fd.append("insurance_end_date", form.insurance_end_date.$d);
+      if (form.Registeration_end_date?.$d)
+        fd.append("registeration_end_date", form.Registeration_end_date.$d);
+      if (form.polution_end_date?.$d)
+        fd.append("polution_end_date", form.polution_end_date.$d);
 
-      formData.append("car_type", addData.carType);
-      formData.append("location", addData.vehicleLocation);
-      formData.append("district", addData.vehicleDistrict);
+      // Images
+      const pushFiles = (arr, key) => {
+        if (!arr?.length) return;
+        [...arr].forEach((file) => fd.append(key, file));
+      };
 
-      let tostID;
-      if (formData) {
-        tostID = toast.loading("Saving...", { position: "bottom-center" });
-        dispatch(setLoading(true));
-      }
+      pushFiles(form.image, "image");
+      pushFiles(form.insurance_image, "insurance_image");
+      pushFiles(form.polution_image, "polution_image");
+      pushFiles(form.rc_book_image, "rc_book_image");
 
-      const res = await fetch("/api/admin/addProduct", {
-        method: "POST",
-        body: formData,
-      });
+      dispatch(setLoading(true));
+      const toastId = toast.loading("Saving vehicle...");
 
-      if (!res.ok) {
-        toast.error("Error while saving");
-        toast.dismiss(tostID);
-        dispatch(setLoading(false));
-      } else {
-        dispatch(setadminAddVehicleSuccess(true));
-        toast.dismiss(tostID);
-        toast.success("Vehicle added");
-        dispatch(setLoading(false));
-      }
+      // ⭐ API WRAPPER HANDLES BASE URL + ADMIN TOKEN
+      await api.post("/api/admin/addProduct", fd, true); // `true` => multipart mode
 
+      dispatch(setadminAddVehicleSuccess(true));
+      toast.dismiss(toastId);
+      toast.success("Vehicle added successfully!");
       reset();
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
       dispatch(setadminCrudError(true));
-      console.log(error);
+      toast.error("Failed to add vehicle");
     }
 
+    dispatch(setLoading(false));
     dispatch(addVehicleClicked(false));
     navigate("/adminDashboard/allProduct");
   };
@@ -170,192 +141,90 @@ const AddProductModal = () => {
 
   return (
     <>
-      {/* Toast container mounted once */}
       <Toaster position="bottom-center" />
 
       {isAddVehicleClicked && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
-          {/* Modal card wrapper */}
           <div className="relative w-full max-w-5xl">
-            {/* Close button */}
             <button
               onClick={handleClose}
               disabled={loading}
-              className="
-                absolute -top-4 -right-4
-                flex items-center justify-center
-                h-9 w-9
-                rounded-full
-                bg-white
-                border border-gray-200
-                shadow-md
-                hover:bg-red-50
-                hover:text-red-500
-                disabled:opacity-60 disabled:cursor-not-allowed
-                transition
-              "
+              className="absolute -top-4 -right-4 h-9 w-9 flex items-center justify-center rounded-full bg-white border shadow-md hover:bg-red-50 hover:text-red-500 transition"
             >
               <IoMdClose style={{ fontSize: "22px" }} />
             </button>
 
             <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-2xl border overflow-hidden">
+
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-200 bg-slate-50">
-                  <div className="mb-1.5">
-                    <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
-                      Vehicle
-                    </span>
-                  </div>
-                  <h2 className="text-base sm:text-lg font-semibold text-slate-900">
-                    Add New Vehicle
-                  </h2>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Fill in the details below to add a new vehicle to your fleet.
-                  </p>
+                <div className="px-6 py-4 border-b bg-slate-50">
+                  <span className="inline-flex px-2 py-[2px] text-[11px] font-semibold bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] rounded-md uppercase tracking-[0.16em]">
+                    Vehicle
+                  </span>
+                  <h2 className="text-lg font-semibold mt-2">Add New Vehicle</h2>
+                  <p className="text-xs text-slate-500">Complete the details below.</p>
                 </div>
 
-                {/* Form content */}
-                <div className="p-4 sm:p-6 lg:p-8 max-h-[80vh] overflow-y-auto">
+                {/* Scroll content */}
+                <div className="p-6 max-h-[80vh] overflow-y-auto">
                   <Box
                     sx={{
                       "& .MuiTextField-root": {
                         m: 1.5,
                         width: "100%",
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": {
-                            borderColor: "#E5E7EB",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: "#1D4ED8",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "#1D4ED8",
-                          },
-                        },
                       },
                     }}
-                    noValidate
-                    autoComplete="off"
                   >
-                    {/* Basic details */}
+                    {/* BASIC FIELDS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                      <TextField
-                        required
-                        id="registeration_number"
-                        label="Registration Number"
-                        {...register("registeration_number")}
-                      />
-
+                      <TextField {...register("registeration_number")} required label="Registration Number" />
                       <Controller
-                        control={control}
                         name="company"
+                        control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="company"
-                            select
-                            label="Company"
-                            error={Boolean(field.value === "")}
-                          >
-                            {companyData.map((cur, idx) => (
-                              <MenuItem value={cur} key={idx}>
-                                {cur}
-                              </MenuItem>
-                            ))}
+                          <TextField {...field} select required label="Company">
+                            {companyData.map((c, i) => <MenuItem key={i} value={c}>{c}</MenuItem>)}
                           </TextField>
                         )}
                       />
-
-                      <TextField
-                        required
-                        id="name"
-                        label="Name"
-                        {...register("name")}
-                      />
-
+                      <TextField {...register("name")} required label="Name" />
                       <Controller
-                        control={control}
                         name="model"
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="model"
-                            select
-                            label="Model"
-                            error={Boolean(field.value === "")}
-                          >
-                            {modelData.map((cur, idx) => (
-                              <MenuItem value={cur} key={idx}>
-                                {cur}
-                              </MenuItem>
-                            ))}
-                          </TextField>
-                        )}
-                      />
-
-                      <TextField
-                        id="title"
-                        label="Title"
-                        {...register("title")}
-                      />
-                      <TextField
-                        id="base_package"
-                        label="Base Package"
-                        {...register("base_package")}
-                      />
-                      <TextField
-                        id="price"
-                        type="number"
-                        label="Price"
-                        {...register("price")}
-                      />
-
-                      <TextField
-                        required
-                        id="year_made"
-                        type="number"
-                        label="Year Made"
-                        {...register("year_made")}
-                      />
-
-                      <Controller
                         control={control}
-                        name="fuelType"
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="fuel_type"
-                            select
-                            label="Fuel Type"
-                            error={Boolean(field.value === "")}
-                          >
-                            <MenuItem value={"petrol"}>Petrol</MenuItem>
-                            <MenuItem value={"diesel"}>Diesel</MenuItem>
-                            <MenuItem value={"electirc"}>Electric</MenuItem>
-                            <MenuItem value={"hybrid"}>Hybrid</MenuItem>
+                          <TextField {...field} select required label="Model">
+                            {modelData.map((m, i) => <MenuItem key={i} value={m}>{m}</MenuItem>)}
                           </TextField>
                         )}
                       />
+
+                      <TextField {...register("title")} label="Title" />
+                      <TextField {...register("base_package")} label="Base Package" />
+                      <TextField {...register("price")} type="number" label="Price" />
+                      <TextField {...register("year_made")} required type="number" label="Year Made" />
                     </div>
 
-                    {/* Car config */}
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                    {/* CONFIG FIELDS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                      <Controller
+                        name="fuelType"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} select required label="Fuel">
+                            <MenuItem value="petrol">Petrol</MenuItem>
+                            <MenuItem value="diesel">Diesel</MenuItem>
+                            <MenuItem value="electric">Electric</MenuItem>
+                            <MenuItem value="hybrid">Hybrid</MenuItem>
+                          </TextField>
+                        )}
+                      />
+
                       <Controller
                         name="carType"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="car_type"
-                            select
-                            label="Car Type"
-                            error={Boolean(field.value === "")}
-                          >
+                          <TextField {...field} select required label="Car Type">
                             <MenuItem value="sedan">Sedan</MenuItem>
                             <MenuItem value="suv">SUV</MenuItem>
                             <MenuItem value="hatchback">Hatchback</MenuItem>
@@ -364,240 +233,106 @@ const AddProductModal = () => {
                       />
 
                       <Controller
-                        control={control}
                         name="Seats"
+                        control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="seats"
-                            select
-                            label="Seats"
-                            error={Boolean(field.value === "")}
-                          >
-                            <MenuItem value={"5"}>5</MenuItem>
-                            <MenuItem value={"7"}>7</MenuItem>
-                            <MenuItem value={"8"}>8</MenuItem>
+                          <TextField {...field} select required label="Seats">
+                            <MenuItem value="5">5</MenuItem>
+                            <MenuItem value="7">7</MenuItem>
+                            <MenuItem value="8">8</MenuItem>
                           </TextField>
                         )}
                       />
 
                       <Controller
-                        control={control}
                         name="transmitionType"
+                        control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="transmittion_type"
-                            select
-                            label="Transmission Type"
-                            error={Boolean(field.value === "")}
-                          >
-                            <MenuItem value={"automatic"}>Automatic</MenuItem>
-                            <MenuItem value={"manual"}>Manual</MenuItem>
+                          <TextField {...field} select required label="Transmission">
+                            <MenuItem value="automatic">Automatic</MenuItem>
+                            <MenuItem value="manual">Manual</MenuItem>
                           </TextField>
                         )}
                       />
 
+                      {/* Location Fields */}
                       <Controller
-                        control={control}
                         name="vehicleLocation"
+                        control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="vehicleLocation"
-                            select
-                            label="Vehicle Location"
-                            error={Boolean(field.value === "")}
-                          >
-                            {locationData.map((cur, idx) => (
-                              <MenuItem value={cur} key={idx}>
-                                {cur}
-                              </MenuItem>
-                            ))}
+                          <TextField {...field} select required label="Location">
+                            {locationData.map((l, i) => <MenuItem key={i} value={l}>{l}</MenuItem>)}
                           </TextField>
                         )}
                       />
 
                       <Controller
-                        control={control}
                         name="vehicleDistrict"
+                        control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            required
-                            id="vehicleDistrict"
-                            select
-                            label="Vehicle District"
-                            error={Boolean(field.value === "")}
-                          >
-                            {districtData.map((cur, idx) => (
-                              <MenuItem value={cur} key={idx}>
-                                {cur}
-                              </MenuItem>
-                            ))}
+                          <TextField {...field} select required label="District">
+                            {districtData.map((d, i) => <MenuItem key={i} value={d}>{d}</MenuItem>)}
                           </TextField>
                         )}
                       />
 
-                      <TextField
-                        id="description"
-                        label="Description"
-                        multiline
-                        rows={4}
-                        sx={{
-                          width: "100%",
-                        }}
-                        {...register("description")}
-                      />
+                      <TextField {...register("description")} multiline rows={4} label="Description" />
                     </div>
 
-                    {/* Dates */}
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      <Controller
-                        name="insurance_end_date"
-                        control={control}
-                        render={({ field }) => (
-                          <LocalizationProvider dateAdapter={AdapterDayjs}>
-                            <DatePicker
-                              {...field}
-                              label="Insurance End Date"
-                              inputFormat="MM/dd/yyyy"
-                              value={field.value || null}
-                              onChange={(date) => field.onChange(date)}
-                              renderInput={(params) => <TextField {...params} />}
-                            />
-                          </LocalizationProvider>
-                        )}
-                      />
-
-                      <Controller
-                        control={control}
-                        name="Registeration_end_date"
-                        render={({ field }) => (
-                          <LocalizationProvider dateAdapter={AdapterDayjs}>
-                            <DatePicker
-                              {...field}
-                              label="Registration End Date"
-                              inputFormat="MM/dd/yyyy"
-                              value={field.value || null}
-                              onChange={(date) => field.onChange(date)}
-                              renderInput={(params) => <TextField {...params} />}
-                            />
-                          </LocalizationProvider>
-                        )}
-                      />
-
-                      <Controller
-                        control={control}
-                        name="polution_end_date"
-                        render={({ field }) => (
-                          <LocalizationProvider dateAdapter={AdapterDayjs}>
-                            <DatePicker
-                              {...field}
-                              label="Pollution End Date"
-                              inputFormat="MM/dd/yyyy"
-                              value={field.value || null}
-                              onChange={(date) => field.onChange(date)}
-                              renderInput={(params) => <TextField {...params} />}
-                            />
-                          </LocalizationProvider>
-                        )}
-                      />
+                    {/* DATE PICKERS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {["insurance_end_date", "Registeration_end_date", "polution_end_date"].map(
+                        (fieldName, i) => (
+                          <Controller
+                            key={i}
+                            name={fieldName}
+                            control={control}
+                            render={({ field }) => (
+                              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                <DatePicker
+                                  {...field}
+                                  label={fieldName.replace(/_/g, " ")}
+                                  onChange={(date) => field.onChange(date)}
+                                />
+                              </LocalizationProvider>
+                            )}
+                          />
+                        )
+                      )}
                     </div>
 
-                    {/* File uploads */}
-                    <div className="mt-8">
-                      <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                        Upload Documents & Images
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                        <div>
-                          <label
-                            className="block mb-2 text-xs font-medium text-slate-700"
-                            htmlFor="insurance_image"
-                          >
-                            Upload Insurance Image
-                          </label>
+                    {/* FILE UPLOADS */}
+                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {[
+                        ["insurance_image", "Insurance Images"],
+                        ["rc_book_image", "RC Book Images"],
+                        ["polution_image", "Pollution Images"],
+                        ["image", "Vehicle Images"],
+                      ].map(([field, label], i) => (
+                        <div key={i}>
+                          <label className="text-xs font-medium">{label}</label>
                           <input
-                            className="block w-full p-2 text-sm text-slate-900 border border-gray-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/40 focus:border-[#1D4ED8]"
-                            id="insurance_image"
                             type="file"
                             multiple
-                            {...register("insurance_image")}
+                            {...register(field)}
+                            className="block w-full mt-1 p-2 border rounded-lg text-sm"
                           />
                         </div>
-
-                        <div>
-                          <label
-                            className="block mb-2 text-xs font-medium text-slate-700"
-                            htmlFor="rc_book_image"
-                          >
-                            Upload RC Book Image
-                          </label>
-                          <input
-                            className="block w-full p-2 text-sm text-slate-900 border border-gray-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/40 focus:border-[#1D4ED8]"
-                            id="rc_book_image"
-                            type="file"
-                            multiple
-                            {...register("rc_book_image")}
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            className="block mb-2 text-xs font-medium text-slate-700"
-                            htmlFor="polution_image"
-                          >
-                            Upload Pollution Image
-                          </label>
-                          <input
-                            className="block w-full p-2 text-sm text-slate-900 border border-gray-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/40 focus:border-[#1D4ED8]"
-                            id="polution_image"
-                            type="file"
-                            multiple
-                            {...register("polution_image")}
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            className="block mb-2 text-xs font-medium text-slate-700"
-                            htmlFor="image"
-                          >
-                            Upload Vehicle Image
-                          </label>
-                          <input
-                            className="block w-full p-2 text-sm text-slate-900 border border-gray-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/40 focus:border-[#1D4ED8]"
-                            id="image"
-                            type="file"
-                            multiple
-                            {...register("image")}
-                          />
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </Box>
 
-                  {/* Actions */}
+                  {/* ACTION BUTTONS */}
                   <div className="mt-8 flex justify-end gap-3">
                     <button
                       type="button"
+                      className="px-4 py-2 rounded-full border text-sm"
                       onClick={handleClose}
                       disabled={loading}
-                      className="
-                        px-4 py-2 text-sm rounded-full
-                        border border-gray-300
-                        text-slate-700 bg-white
-                        hover:bg-slate-50
-                        disabled:opacity-60 disabled:cursor-not-allowed
-                        transition
-                      "
                     >
                       Cancel
                     </button>
+
                     <Button
                       variant="contained"
                       type="submit"
@@ -605,16 +340,9 @@ const AddProductModal = () => {
                       sx={{
                         textTransform: "none",
                         borderRadius: "999px",
-                        paddingX: 3,
-                        paddingY: 0.8,
+                        px: 4,
                         backgroundColor: "#0071DC",
-                        "&:hover": {
-                          backgroundColor: "#0654BA",
-                        },
-                        "&.Mui-disabled": {
-                          backgroundColor: "#93C5FD",
-                          color: "#E5E7EB",
-                        },
+                        "&:hover": { backgroundColor: "#0654BA" },
                       }}
                     >
                       {loading ? "Submitting..." : "Submit"}
