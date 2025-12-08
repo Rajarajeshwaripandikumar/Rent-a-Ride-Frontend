@@ -5,6 +5,7 @@ import {
   setisPaymentDone,
 } from "../../redux/user/LatestBookingsSlice";
 import { setIsSweetAlert, setPageLoading } from "../../redux/user/userSlice";
+import { api } from "../../../api"; // ✅ use central API helper
 
 /* ------------------  LOAD SCRIPT  ------------------ */
 export function loadScript(src) {
@@ -23,38 +24,21 @@ export function loadScript(src) {
 /* ------------------  FETCH LATEST BOOKING  ------------------ */
 export const fetchLatestBooking = async (user_id, dispatch) => {
   try {
-    const API_BASE_URL =
-      import.meta.env.MODE === "development"
-        ? import.meta.env.VITE_API_URL || ""
-        : import.meta.env.VITE_API_URL || "";
+    const data = await api.post("/api/user/latestbookings", { user_id });
 
-    const res = await fetch(`${API_BASE_URL}/api/user/latestbookings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id }),
-      credentials: "include",
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json().catch(() => null);
     if (!data) return null;
 
     dispatch(setLatestBooking(data));
     dispatch(setisPaymentDone(true));
     return data;
-  } catch {
+  } catch (err) {
+    // optional: console.error("fetchLatestBooking error", err);
     return null;
   }
 };
 
 /* ------------------  MAIN PAYMENT FUNCTION  ------------------ */
 export async function displayRazorpay(values = {}, navigate, dispatch) {
-  const API_BASE_URL =
-    import.meta.env.MODE === "development"
-      ? import.meta.env.VITE_API_URL || ""
-      : import.meta.env.VITE_API_URL || "";
-
   const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   if (!RAZORPAY_KEY_ID) {
@@ -65,32 +49,25 @@ export async function displayRazorpay(values = {}, navigate, dispatch) {
   try {
     dispatch(setPageLoading(true));
 
-    const sdkLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+    const sdkLoaded = await loadScript(
+      "https://checkout.razorpay.com/v1/checkout.js"
+    );
     if (!sdkLoaded) {
       dispatch(setPageLoading(false));
       toast.error("Failed to load payment gateway.");
       return { ok: false };
     }
 
-    const accessToken = localStorage.getItem("accessToken");
-
-    const result = await fetch(`${API_BASE_URL}/api/user/razorpay`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      credentials: "include",
-      body: JSON.stringify(values),
-    });
-
-    if (!result.ok) {
+    // ✅ Use shared api helper instead of manual fetch
+    let data = null;
+    try {
+      data = await api.post("/api/user/razorpay", values);
+    } catch (err) {
       dispatch(setPageLoading(false));
       toast.error("Failed to initiate payment.");
       return { ok: false };
     }
 
-    const data = await result.json().catch(() => null);
     if (!data || !data.ok) {
       dispatch(setPageLoading(false));
       toast.error("Payment creation error.");
@@ -130,23 +107,14 @@ export async function displayRazorpay(values = {}, navigate, dispatch) {
             razorpaySignature: response.razorpay_signature,
           };
 
-          const bookRes = await fetch(`${API_BASE_URL}/api/user/bookCar`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            },
-            credentials: "include",
-            body: JSON.stringify(paymentPayload),
-          });
-
-          if (!bookRes.ok) {
+          // ✅ Use api helper for booking call
+          try {
+            await api.post("/api/user/bookCar", paymentPayload);
+          } catch (err) {
             dispatch(setPageLoading(false));
             toast.error("Payment succeeded but booking failed.");
             return;
           }
-
-          const success = await bookRes.json().catch(() => null);
 
           dispatch(setIsSweetAlert(true));
           await fetchLatestBooking(values.user_id, dispatch);
