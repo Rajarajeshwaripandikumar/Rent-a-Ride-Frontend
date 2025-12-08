@@ -1,13 +1,22 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
-import { api } from "../api"; // ✅ central authorized axios instance
+import { api } from "../../../api"; // ✅ central API helper
 
-const STATS_URL = "/api/admin/stats"; // proxied by vite -> backend
-const STATS_REPORT_URL = "/api/admin/stats/report/csv"; // ✅ NEW
+const STATS_URL = "/api/admin/stats"; // proxied or api.baseUrl (handled by api)
+const STATS_REPORT_URL = "/api/admin/stats/report/csv";
 const USERS_URL = "/api/admin/users";
 const VENDORS_URL = "/api/admin/vendors";
 const VENDORS_REPORT_URL = "/api/admin/vendors/report/csv"; // now unused, but kept
+
+// 🔹 Helper: attach admin JWT from localStorage
+const getAuthHeaders = (extra = {}) => {
+  const token = localStorage.getItem("adminToken");
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+};
 
 // 🔹 Helpers for display
 const formatCurrency = (value) =>
@@ -87,8 +96,10 @@ const AdminHomeMain = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get(STATS_URL); // ✅ uses authorized axios
-        const data = res.data;
+        // ✅ use central api helper
+        const data = await api.get(STATS_URL, {
+          headers: getAuthHeaders(),
+        });
 
         if (!mounted) return;
 
@@ -96,7 +107,6 @@ const AdminHomeMain = () => {
         let normalizedSalesOverview;
 
         if (Array.isArray(data.salesOverview)) {
-          // backend returns: [{ key: '2025-12', month: 'Dec', revenue: 8350 }, ...]
           const labels = data.salesOverview.map(
             (d) => d.month || d.date || d.key
           );
@@ -114,7 +124,6 @@ const AdminHomeMain = () => {
           Array.isArray(data.salesOverview.labels) &&
           Array.isArray(data.salesOverview.series)
         ) {
-          // already in correct shape
           normalizedSalesOverview = data.salesOverview;
         } else {
           normalizedSalesOverview = { labels: [], series: [] };
@@ -134,11 +143,7 @@ const AdminHomeMain = () => {
       } catch (err) {
         console.error("admin stats fetch failed:", err);
         if (mounted)
-          setError(
-            err?.response?.data?.message ||
-              err.message ||
-              "Failed to fetch stats from server"
-          );
+          setError(err.message || "Failed to fetch stats from server");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -159,23 +164,19 @@ const AdminHomeMain = () => {
         setUvLoading(true);
         setUvError(null);
 
-        const [usersRes, vendorsRes] = await Promise.all([
-          api.get(USERS_URL), // ✅
-          api.get(VENDORS_URL), // ✅
+        const [usersData, vendorsData] = await Promise.all([
+          api.get(USERS_URL, { headers: getAuthHeaders() }),
+          api.get(VENDORS_URL, { headers: getAuthHeaders() }),
         ]);
 
         if (!mounted) return;
 
-        setUsers(usersRes.data.users || []);
-        setVendors(vendorsRes.data.vendors || []);
+        setUsers(usersData.users || []);
+        setVendors(vendorsData.vendors || []);
       } catch (err) {
         console.error("users/vendors fetch failed:", err);
         if (mounted)
-          setUvError(
-            err?.response?.data?.message ||
-              err.message ||
-              "Failed to fetch users/vendors"
-          );
+          setUvError(err.message || "Failed to fetch users/vendors");
       } finally {
         if (mounted) setUvLoading(false);
       }
@@ -216,13 +217,24 @@ const AdminHomeMain = () => {
   const saveVendor = async () => {
     if (!editingVendorId) return;
     try {
-      const res = await api.put(`/api/admin/vendors/${editingVendorId}`, {
-        username: vendorForm.username,
-        email: vendorForm.email,
-        phoneNumber: vendorForm.phoneNumber,
-      }); // ✅ authorized axios
+      const res = await fetch(`${api.baseUrl}/api/admin/vendors/${editingVendorId}`, {
+        method: "PUT",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        credentials: "include",
+        body: JSON.stringify({
+          username: vendorForm.username,
+          email: vendorForm.email,
+          phoneNumber: vendorForm.phoneNumber,
+        }),
+      });
 
-      const updatedVendor = res.data.vendor;
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to update vendor");
+      }
+
+      const data = await res.json();
+      const updatedVendor = data.vendor;
 
       setVendors((prev) =>
         prev.map((v) => (v._id === updatedVendor._id ? updatedVendor : v))
@@ -231,11 +243,7 @@ const AdminHomeMain = () => {
       cancelEditVendor();
     } catch (err) {
       console.error("Update vendor error:", err);
-      alert(
-        err?.response?.data?.message ||
-          err.message ||
-          "Failed to update vendor"
-      );
+      alert(err.message || "Failed to update vendor");
     }
   };
 
@@ -288,11 +296,18 @@ const AdminHomeMain = () => {
   // ✅ ---------- DOWNLOAD ADMIN STATS CSV (EARNINGS CARD) ----------
   const handleDownloadStatsReport = async () => {
     try {
-      const res = await api.get(STATS_REPORT_URL, {
-        responseType: "blob",
-      }); // ✅ authorized + cookies
+      const res = await fetch(`${api.baseUrl}${STATS_REPORT_URL}`, {
+        method: "GET",
+        credentials: "include",
+        headers: getAuthHeaders(),
+      });
 
-      const blob = res.data;
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to download stats report");
+      }
+
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -303,11 +318,7 @@ const AdminHomeMain = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Stats CSV download error:", err);
-      alert(
-        err?.response?.data?.message ||
-          err.message ||
-          "Could not download stats report"
-      );
+      alert(err.message || "Could not download stats report");
     }
   };
 
