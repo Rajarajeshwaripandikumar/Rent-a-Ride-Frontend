@@ -1,5 +1,5 @@
 // src/components/RichTextEditor.jsx
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -9,14 +9,25 @@ import TextAlign from "@tiptap/extension-text-align";
 const RichTextEditor = ({ value, onChange }) => {
   const editor = useEditor({
     extensions: [
+      // StarterKit gives you basic nodes/marks like paragraph, bold, italic, etc.
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        // If in your project some global config also adds Link/Underline via StarterKit,
+        // you can safely disable them here:
+        // link: false,
+        // underline: false,
       }),
+
+      // Explicit underline mark
       Underline,
+
+      // Explicit link mark with custom behavior
       Link.configure({
         openOnClick: false,
         linkOnPaste: true,
       }),
+
+      // Text alignment
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
@@ -27,6 +38,7 @@ const RichTextEditor = ({ value, onChange }) => {
     },
   });
 
+  // Keep editor content in sync when `value` prop changes from outside
   useEffect(() => {
     if (!editor) return;
     const html = editor.getHTML();
@@ -42,6 +54,7 @@ const RichTextEditor = ({ value, onChange }) => {
     const url = window.prompt("Enter URL", prev || "https://");
 
     if (url === null) return;
+
     if (url === "") {
       editor.chain().focus().unsetLink().run();
       return;
@@ -68,14 +81,16 @@ const RichTextEditor = ({ value, onChange }) => {
     <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b bg-gray-50 text-sm">
-
         {/* Heading selector */}
         <select
           className="border border-gray-300 rounded px-1 py-1 text-xs bg-white"
           onChange={(e) => {
             const level = Number(e.target.value);
-            if (!level) editor.chain().focus().setParagraph().run();
-            else editor.chain().focus().toggleHeading({ level }).run();
+            if (!level) {
+              editor.chain().focus().setParagraph().run();
+            } else {
+              editor.chain().focus().toggleHeading({ level }).run();
+            }
           }}
           value={
             editor.isActive("heading", { level: 1 })
