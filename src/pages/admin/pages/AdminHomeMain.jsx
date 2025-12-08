@@ -33,12 +33,25 @@ const formatDateTime = (dateStr) => {
 
 /* ---------- CSV HELPERS (frontend vendor CSV) ---------- */
 
-// escape for CSV cell
-const csvEscape = (value) => {
-  if (value === null || value === undefined) return "";
-  const s = String(value).replace(/"/g, '""');
-  return `"${s}"`;
-};
+// 🔹 Generic safe CSV builder
+const toCsv = (rows) =>
+  rows
+    .map((row) =>
+      row
+        .map((value) => {
+          if (value === null || value === undefined) return "";
+          const s = String(value);
+
+          // If value has comma, quote or newline → wrap in quotes
+          if (/[",\r\n]/.test(s)) {
+            return `"${s.replace(/"/g, '""')}"`;
+          }
+
+          return s;
+        })
+        .join(",")
+    )
+    .join("\r\n");
 
 // Excel-friendly date for CSV
 const formatCsvDate = (dateStr) => {
@@ -55,10 +68,8 @@ const formatCsvDate = (dateStr) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
-// Excel-safe phone (no 7.81E+09 and no trimming 0s)
 // Simple phone formatter for CSV
 const formatPhoneNumber = (phone) => (phone ? String(phone) : "");
-
 
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
@@ -242,23 +253,23 @@ const AdminHomeMain = () => {
         return;
       }
 
+      // 🔹 Debug: see what we actually have
+      console.log("Vendors for CSV:", vendors.slice(0, 3));
+
       const rows = [];
       rows.push(["Username", "Email", "Phone", "IsVendor", "CreatedAt"]);
 
       vendors.forEach((v) => {
-        const phoneCell = formatPhoneNumber(v.phoneNumber);
         rows.push([
           v.username || "",
           v.email || "",
-          phoneCell,
+          formatPhoneNumber(v.phoneNumber),
           v.isVendor ? "Yes" : "No",
           formatCsvDate(v.createdAt),
         ]);
       });
 
-      const csvString = rows
-        .map((row) => row.map(csvEscape).join(","))
-        .join("\r\n");
+      const csvString = toCsv(rows);
 
       const blob = new Blob(["\uFEFF" + csvString], {
         type: "text/csv;charset=utf-8;",
