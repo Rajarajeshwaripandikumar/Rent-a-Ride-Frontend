@@ -1,21 +1,13 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
+import { api } from "../../../api"; // ✅ central axios with auth
 
 const STATS_URL = "/api/admin/stats"; // proxied by vite -> backend
 const STATS_REPORT_URL = "/api/admin/stats/report/csv"; // ✅ NEW
 const USERS_URL = "/api/admin/users";
 const VENDORS_URL = "/api/admin/vendors";
-const VENDORS_REPORT_URL = "/api/admin/vendors/report/csv";
-
-// 🔹 Helper: attach admin JWT from localStorage
-const getAuthHeaders = (extra = {}) => {
-  const token = localStorage.getItem("adminToken");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extra,
-  };
-};
+const VENDORS_REPORT_URL = "/api/admin/vendors/report/csv"; // now unused for CSV
 
 // 🔹 Helpers for display
 const formatCurrency = (value) =>
@@ -39,6 +31,33 @@ const formatDateTime = (dateStr) => {
     minute: "2-digit",
   });
 };
+
+/* ---------- CSV HELPERS (frontend vendor CSV) ---------- */
+
+// escape for CSV cell
+const csvEscape = (value) => {
+  if (value === null || value === undefined) return "";
+  const s = String(value).replace(/"/g, '""'); // escape quotes
+  return `"${s}"`;
+};
+
+// Excel-friendly date for CSV
+const formatCsvDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+};
+
+// ensure Excel treats phone as text (no 7.81E+09, no trimming 0s)
+const formatPhoneNumber = (phone) => (phone ? `="${phone}"` : "");
 
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
@@ -68,18 +87,8 @@ const AdminHomeMain = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(STATS_URL, {
-          method: "GET",
-          credentials: "include",
-          headers: getAuthHeaders(),
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Status ${res.status}`);
-        }
-
-        const data = await res.json();
+        const res = await api.get(STATS_URL); // ✅ uses axios with auth
+        const data = res.data;
 
         if (!mounted) return;
 
@@ -125,7 +134,11 @@ const AdminHomeMain = () => {
       } catch (err) {
         console.error("admin stats fetch failed:", err);
         if (mounted)
-          setError(err.message || "Failed to fetch stats from server");
+          setError(
+            err?.response?.data?.message ||
+              err.message ||
+              "Failed to fetch stats from server"
+          );
       } finally {
         if (mounted) setLoading(false);
       }
@@ -147,38 +160,22 @@ const AdminHomeMain = () => {
         setUvError(null);
 
         const [usersRes, vendorsRes] = await Promise.all([
-          fetch(USERS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
-          fetch(VENDORS_URL, {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }),
+          api.get(USERS_URL),
+          api.get(VENDORS_URL),
         ]);
-
-        if (!usersRes.ok) {
-          const txt = await usersRes.text();
-          throw new Error(txt || "Failed to fetch users");
-        }
-        if (!vendorsRes.ok) {
-          const txt = await vendorsRes.text();
-          throw new Error(txt || "Failed to fetch vendors");
-        }
-
-        const usersData = await usersRes.json();
-        const vendorsData = await vendorsRes.json();
 
         if (!mounted) return;
 
-        setUsers(usersData.users || []);
-        setVendors(vendorsData.vendors || []);
+        setUsers(usersRes.data.users || []);
+        setVendors(vendorsRes.data.vendors || []);
       } catch (err) {
         console.error("users/vendors fetch failed:", err);
         if (mounted)
-          setUvError(err.message || "Failed to fetch users/vendors");
+          setUvError(
+            err?.response?.data?.message ||
+              err.message ||
+              "Failed to fetch users/vendors"
+          );
       } finally {
         if (mounted) setUvLoading(false);
       }
@@ -219,24 +216,13 @@ const AdminHomeMain = () => {
   const saveVendor = async () => {
     if (!editingVendorId) return;
     try {
-      const res = await fetch(`/api/admin/vendors/${editingVendorId}`, {
-        method: "PUT",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        credentials: "include",
-        body: JSON.stringify({
-          username: vendorForm.username,
-          email: vendorForm.email,
-          phoneNumber: vendorForm.phoneNumber,
-        }),
+      const res = await api.put(`/api/admin/vendors/${editingVendorId}`, {
+        username: vendorForm.username,
+        email: vendorForm.email,
+        phoneNumber: vendorForm.phoneNumber,
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to update vendor");
-      }
-
-      const data = await res.json();
-      const updatedVendor = data.vendor;
+      const updatedVendor = res.data.vendor;
 
       setVendors((prev) =>
         prev.map((v) => (v._id === updatedVendor._id ? updatedVendor : v))
@@ -245,25 +231,46 @@ const AdminHomeMain = () => {
       cancelEditVendor();
     } catch (err) {
       console.error("Update vendor error:", err);
-      alert(err.message || "Failed to update vendor");
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Failed to update vendor"
+      );
     }
   };
 
-  // ---------- DOWNLOAD VENDOR CSV ----------
-  const handleDownloadCsv = async () => {
+  // ---------- DOWNLOAD VENDOR CSV (FRONTEND-GENERATED) ----------
+  const handleDownloadCsv = () => {
     try {
-      const res = await fetch(VENDORS_REPORT_URL, {
-        method: "GET",
-        credentials: "include",
-        headers: getAuthHeaders(),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to download vendor CSV");
+      if (!vendors || vendors.length === 0) {
+        alert("No vendors to export");
+        return;
       }
 
-      const blob = await res.blob();
+      const rows = [];
+
+      // header
+      rows.push(["Username", "Email", "Phone", "IsVendor", "CreatedAt"]);
+
+      vendors.forEach((v) => {
+        const phoneCell = formatPhoneNumber(v.phoneNumber);
+        rows.push([
+          v.username || "",
+          v.email || "",
+          phoneCell,
+          v.isVendor ? "Yes" : "No",
+          formatCsvDate(v.createdAt),
+        ]);
+      });
+
+      const csvString = rows
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\r\n");
+
+      const blob = new Blob(["\uFEFF" + csvString], {
+        type: "text/csv;charset=utf-8;",
+      });
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -273,26 +280,19 @@ const AdminHomeMain = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Vendor CSV download error:", err);
-      alert(err.message || "Could not download vendor CSV");
+      console.error("Vendor CSV export error:", err);
+      alert(err.message || "Could not export vendor CSV");
     }
   };
 
   // ✅ ---------- DOWNLOAD ADMIN STATS CSV (EARNINGS CARD) ----------
   const handleDownloadStatsReport = async () => {
     try {
-      const res = await fetch(STATS_REPORT_URL, {
-        method: "GET",
-        credentials: "include",
-        headers: getAuthHeaders(),
+      const res = await api.get(STATS_REPORT_URL, {
+        responseType: "blob",
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to download stats report");
-      }
-
-      const blob = await res.blob();
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -303,7 +303,11 @@ const AdminHomeMain = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Stats CSV download error:", err);
-      alert(err.message || "Could not download stats report");
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Could not download stats report"
+      );
     }
   };
 
@@ -354,7 +358,7 @@ const AdminHomeMain = () => {
           "
         >
           <div>
-            <span className="inline-flex items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] rounded-md">
+            <span className="inline-flex	items-center px-2 py-[2px] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] bg-[#EFF6FF] border-[#BFDBFE] border rounded-md">
               Earnings
             </span>
 
@@ -380,27 +384,26 @@ const AdminHomeMain = () => {
           </div>
 
           <div className="mt-5">
-  <button
-    onClick={handleDownloadStatsReport}
-    className="
-      px-6 py-3
-      rounded-full
-      bg-[#0071DC]
-      text-white
-      text-sm
-      font-semibold
-      shadow-md
-      hover:bg-[#0654BA]
-      focus:outline-none
-      focus:ring-2
-      focus:ring-offset-2
-      focus:ring-[#0071DC]
-    "
-  >
-    Download report
-  </button>
-</div>
-
+            <button
+              onClick={handleDownloadStatsReport}
+              className="
+                px-6 py-3
+                rounded-full
+                bg-[#0071DC]
+                text-white
+                text-sm
+                font-semibold
+                shadow-md
+                hover:bg-[#0654BA]
+                focus:outline-none
+                focus:ring-2
+                focus:ring-offset-2
+                focus:ring-[#0071DC]
+              "
+            >
+              Download report
+            </button>
+          </div>
         </div>
 
         {/* Small stat cards */}
@@ -680,7 +683,6 @@ const AdminHomeMain = () => {
             ) : (
               <ul className="space-y-3">
                 {stats.recentTransactions.slice(0, 5).map((t, index) => {
-                  // 🔹 Nice display instead of raw booking id
                   const bookingLabel =
                     t.bookingCode ||
                     t.bookingId ||
