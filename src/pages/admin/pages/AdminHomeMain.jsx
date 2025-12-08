@@ -1,7 +1,7 @@
 // src/pages/AdminHomeMain.jsx
 import { useEffect, useState } from "react";
 import { LineChart, Button } from "../components";
-import { api } from "../api"; // ✅ correct import for your api.js
+import { api } from "../../../api"; // ✅ correct import for your api.js
 
 const STATS_URL = "/api/admin/stats";
 const STATS_REPORT_URL = "/api/admin/stats/report/csv";
