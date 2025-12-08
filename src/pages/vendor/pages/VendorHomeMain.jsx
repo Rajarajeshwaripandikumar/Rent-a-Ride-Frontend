@@ -1,8 +1,8 @@
-// src/pages/vendor/VendorHomeMain.jsx
+// src/pages/vendor/pages/VendorHomeMain.jsx
 
 import { useEffect, useState } from "react";
 import { FiDownload } from "react-icons/fi";
-import { api } from "../../api"; // ⬅️ adjust to "../../api" if this file is in src/pages/vendor
+import { api } from "../../../api"; // 👈 FIXED: correct path + named import
 
 function VendorHomeMain() {
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ function VendorHomeMain() {
         setLoading(true);
         setError(null);
 
-        // ✅ Uses api.js → correct base URL + Authorization: Bearer <token> + credentials
+        // ✅ Uses api.js → correct base URL + Authorization header + credentials
         const json = await api.get("/api/vendor/stats");
 
         if (!cancelled) {
@@ -101,7 +101,7 @@ function VendorHomeMain() {
     totalVehicles = 0,
     totalBookings = 0,
     completedTrips = 0,
-    earnings = 0, // 👈 from backend
+    earnings = 0,
   } = stats || {};
 
   return (
