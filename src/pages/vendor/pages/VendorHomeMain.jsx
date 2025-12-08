@@ -1,13 +1,14 @@
+// src/pages/vendor/VendorHomeMain.jsx
+
 import { useEffect, useState } from "react";
 import { FiDownload } from "react-icons/fi";
+import { api } from "../../api"; // ⬅️ adjust to "../../api" if this file is in src/pages/vendor
 
 function VendorHomeMain() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
-
-  const STATS_URL = "/api/vendor/stats"; // must match vendorRoute.js
 
   useEffect(() => {
     let cancelled = false;
@@ -17,16 +18,8 @@ function VendorHomeMain() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(STATS_URL, {
-          method: "GET",
-          credentials: "include", // send vendor JWT cookie
-        });
-
-        const json = await res.json().catch(() => ({}));
-
-        if (!res.ok || !json.success) {
-          throw new Error(json.message || `Error ${res.status}`);
-        }
+        // ✅ Uses api.js → correct base URL + Authorization: Bearer <token> + credentials
+        const json = await api.get("/api/vendor/stats");
 
         if (!cancelled) {
           // controller returns { success, data: { ... } }
