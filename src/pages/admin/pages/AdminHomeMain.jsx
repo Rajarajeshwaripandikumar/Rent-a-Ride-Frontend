@@ -56,7 +56,9 @@ const formatCsvDate = (dateStr) => {
 };
 
 // Excel-safe phone (no 7.81E+09 and no trimming 0s)
-const formatPhoneNumber = (phone) => (phone ? `="${phone}"` : "");
+// Simple phone formatter for CSV
+const formatPhoneNumber = (phone) => (phone ? String(phone) : "");
+
 
 const AdminHomeMain = () => {
   const [loading, setLoading] = useState(true);
