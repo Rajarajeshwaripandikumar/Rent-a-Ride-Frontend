@@ -1,31 +1,34 @@
+// src/pages/admin/pages/Customers.jsx
 import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
 
+// ✅ use central API wrapper (src/api.js)
+import { api } from "../../../api";
+
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Fetch customers (role: user)
   const fetchCustomers = async () => {
     try {
-      const res = await fetch("/api/admin/users", {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      setLoading(true);
+      setErrorMsg(null);
 
-      const data = await res.json();
-      if (data?.users && Array.isArray(data.users)) {
-        setCustomers(data.users);
-      } else {
-        setCustomers([]);
-      }
+      // api.get automatically:
+      // - picks correct base URL
+      // - sends Authorization header (adminToken/accessToken)
+      // - sends cookies: credentials: "include"
+      const data = await api.get("/api/admin/users");
+
+      const list = Array.isArray(data?.users) ? data.users : [];
+      setCustomers(list);
     } catch (err) {
       console.error("[Customers] Error fetching customers:", err);
       setCustomers([]);
+      setErrorMsg(err?.message || "Failed to load customers.");
     } finally {
       setLoading(false);
     }
@@ -37,6 +40,7 @@ const Customers = () => {
 
   // Format date
   const formatDate = (date) => {
+    if (!date) return "—";
     const d = new Date(date);
     if (isNaN(d.getTime())) return "—";
     return `${String(d.getDate()).padStart(2, "0")}/${String(
@@ -56,6 +60,7 @@ const Customers = () => {
           alt="avatar"
           className="w-10 h-10 rounded-full object-cover border border-gray-300"
           onError={(e) => {
+            e.currentTarget.onerror = null;
             e.currentTarget.src = "/placeholder-user.png";
           }}
         />
@@ -122,6 +127,10 @@ const Customers = () => {
           p-5 sm:p-6 lg:p-8
         "
       >
+        {errorMsg && (
+          <p className="text-xs text-red-500 mb-3">{errorMsg}</p>
+        )}
+
         {/* DATA TABLE */}
         <Box sx={{ width: "100%" }}>
           <DataGrid
