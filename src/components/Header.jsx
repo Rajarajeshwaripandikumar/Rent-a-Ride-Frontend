@@ -11,11 +11,14 @@ function Header() {
     currentUser && !currentUser.isAdmin && !currentUser.isVendor;
 
   return (
-    <header className="w-full flex justify-center px-4 sm:px-6 lg:px-10 pt-4 md:pt-6 bg-[#F5F7FB]">
+    <header className="w-full flex justify-center px-3 sm:px-6 lg:px-10 pt-3 md:pt-6 bg-[#F5F7FB]">
       <div
         className="
           w-full max-w-[1200px]
-          flex items-center justify-between gap-4
+          flex flex-col md:flex-row
+          items-center md:items-center
+          justify-between
+          gap-3 md:gap-4
           bg-white
           rounded-2xl
           border border-[#E5E7EB]
@@ -74,7 +77,15 @@ function Header() {
         </nav>
 
         {/* BUTTONS & USER AVATAR */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div
+          className="
+            flex flex-wrap
+            items-center
+            justify-center md:justify-end
+            gap-2 sm:gap-3
+            w-full md:w-auto
+          "
+        >
           {/* Logged-in normal user avatar */}
           {isNormalUser && (
             <Link to="/profile">
@@ -97,7 +108,6 @@ function Header() {
               <Link
                 to="/adminSignin"
                 onClick={(e) => {
-                  // if normal user logged in, block admin signin
                   if (isNormalUser) {
                     e.preventDefault();
                     toast.error("Only admins can sign in here. Use Sign In.");
@@ -107,9 +117,9 @@ function Header() {
                 <button
                   className="
                     flex items-center gap-2
-                    px-4 py-2
+                    px-3 sm:px-4 py-1.5 sm:py-2
                     rounded-full
-                    text-[13px] font-medium
+                    text-[12px] sm:text-[13px] font-medium
                     border border-[#0F7CFF]
                     text-[#0F7CFF]
                     bg-white
@@ -135,7 +145,6 @@ function Header() {
               <Link
                 to="/signin"
                 onClick={(e) => {
-                  // if already logged in as admin/vendor, block user signin
                   if (currentUser?.isAdmin || currentUser?.isVendor) {
                     e.preventDefault();
                     toast.error("Admin/Vendor must use Admin Sign In.");
@@ -144,9 +153,9 @@ function Header() {
               >
                 <button
                   className="
-                    px-4 py-2
+                    px-3 sm:px-4 py-1.5 sm:py-2
                     rounded-full
-                    text-[13px] font-medium
+                    text-[12px] sm:text-[13px] font-medium
                     border border-[#E5E7EB]
                     text-[#4B5563]
                     bg-white
@@ -165,9 +174,9 @@ function Header() {
               <Link to="/signup">
                 <button
                   className="
-                    px-5 py-2
+                    px-4 sm:px-5 py-1.5 sm:py-2
                     rounded-full
-                    text-[13px] font-semibold
+                    text-[12px] sm:text-[13px] font-semibold
                     bg-[#0F7CFF]
                     text-white
                     shadow-sm
