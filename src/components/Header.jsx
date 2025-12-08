@@ -52,15 +52,29 @@ function Header() {
           </div>
         </Link>
 
-        {/* NAVIGATION LINKS */}
-        <nav className="hidden md:flex items-center gap-6">
-          <ul className="flex items-center gap-4">
+        {/* NAVIGATION LINKS – now visible on mobile too */}
+        <nav
+          className="
+            w-full md:w-auto
+            flex
+            justify-center md:justify-center
+            mt-1 md:mt-0
+          "
+        >
+          <ul
+            className="
+              flex items-center
+              gap-3 md:gap-6
+              text-[13px] sm:text-[14px]
+              overflow-x-auto md:overflow-visible
+            "
+          >
             {navLinks.map((navlink, index) => (
               <li key={index}>
                 <Link
                   to={navlink.path}
                   className="
-                    font-poppins font-medium text-[14px]
+                    font-poppins font-medium
                     text-[#4B5563]
                     px-2 py-1.5
                     rounded-lg
@@ -104,7 +118,7 @@ function Header() {
           {/* Logged-out OR non-normal-user: Show buttons */}
           {!isNormalUser && (
             <>
-              {/* Admin – outlined blue pill with circle (like screenshot) */}
+              {/* Admin */}
               <Link
                 to="/adminSignin"
                 onClick={(e) => {
@@ -141,7 +155,7 @@ function Header() {
                 </button>
               </Link>
 
-              {/* Sign In – neutral pill like “Login” */}
+              {/* Login */}
               <Link
                 to="/signin"
                 onClick={(e) => {
@@ -170,7 +184,7 @@ function Header() {
                 </button>
               </Link>
 
-              {/* Sign Up – solid blue pill like “Register” */}
+              {/* Register */}
               <Link to="/signup">
                 <button
                   className="
