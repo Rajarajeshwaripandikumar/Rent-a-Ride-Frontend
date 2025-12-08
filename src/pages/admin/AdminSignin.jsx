@@ -3,15 +3,8 @@ import { useDispatch } from "react-redux";
 import { signInSuccess } from "../../redux/user/userSlice";
 import { useNavigate } from "react-router-dom";
 
-// Backend base URL:
-// - DEV  -> http://localhost:5000
-// - PROD -> VITE_PRODUCTION_BACKEND_URL (Netlify env) or Render fallback
-const API_BASE_URL =
-  import.meta.env.MODE === "development"
-    ? "http://localhost:5000"
-    : (import.meta.env.VITE_PRODUCTION_BACKEND_URL &&
-        import.meta.env.VITE_PRODUCTION_BACKEND_URL.replace(/\/+$/, "")) ||
-      "https://rent-a-ride-backend-c2km.onrender.com";
+// ✅ use centralized API helper
+import { api } from "../../api";
 
 function AdminSignin() {
   const [email, setEmail] = useState("");
@@ -26,37 +19,33 @@ function AdminSignin() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+      // ✅ use api.post – base URL + JSON + credentials handled there
+      const data = await api.post("/api/admin/login", { email, password });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data) {
-        throw new Error(data?.message || "Admin login failed");
-      }
-
+      // depending on backend, user might be in data.user or data
       const user = data.user || data;
 
       if (user.role !== "admin" && !user.isAdmin) {
         throw new Error("Access denied: Not an admin account");
       }
 
-      // Optional: store tokens if your backend returns them
-      if (data.accessToken) {
-        localStorage.setItem("accessToken", data.accessToken);
+      // ✅ normalise tokens and store if present
+      const accessToken = data.accessToken || data.token;
+      const refreshToken = data.refreshToken;
+
+      if (accessToken) {
+        localStorage.setItem("accessToken", accessToken);
       }
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
       }
 
-      dispatch(signInSuccess(user));
+      // keep consistent with other flows (SignIn / VendorSignin)
+      dispatch(signInSuccess(data));
       navigate("/adminDashboard");
     } catch (err) {
-      setError(err.message || "Admin login failed");
+      console.error("Admin login error:", err);
+      setError(err?.message || "Admin login failed");
     }
   };
 
