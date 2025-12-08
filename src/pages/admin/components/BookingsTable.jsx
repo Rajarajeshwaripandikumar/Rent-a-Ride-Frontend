@@ -1,3 +1,4 @@
+// src/pages/admin/pages/OrdersComponents/BookingsTable.jsx
 import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
@@ -43,11 +44,11 @@ const BookingsTable = () => {
   const [errorMsg, setErrorMsg] = useState(null);
 
   /* -----------------------------------------------------------
-     FETCH BOOKINGS (FIXED — uses api.get)
+     FETCH BOOKINGS (using api.get)
   ------------------------------------------------------------ */
   const fetchBookings = async () => {
     try {
-      const raw = await api.get("/api/admin/allBookings"); // ⭐ auto token
+      const raw = await api.get("/api/admin/allBookings"); // ⭐ auto token / base
 
       let list = [];
 
@@ -55,7 +56,7 @@ const BookingsTable = () => {
       else if (raw?.bookings) list = raw.bookings;
       else if (raw?.allBookings) list = raw.allBookings;
       else if (raw?.data) list = raw.data;
-      else {
+      else if (raw && typeof raw === "object") {
         const firstArray = Object.values(raw).find((v) => Array.isArray(v));
         list = firstArray || [];
       }
@@ -70,7 +71,7 @@ const BookingsTable = () => {
   };
 
   /* -----------------------------------------------------------
-     CHANGE STATUS (FIXED — uses api.post)
+     CHANGE STATUS (using api.post)
   ------------------------------------------------------------ */
   const handleStatusChange = async (e, params) => {
     const newStatus = e.target.value;
@@ -93,35 +94,72 @@ const BookingsTable = () => {
   }, []);
 
   /* -----------------------------------------------------------
-     Formatting
+     Safer date formatting (handles different formats)
   ------------------------------------------------------------ */
   const formatDate = (raw) => {
     if (!raw) return "—";
-    const d = new Date(raw);
+
+    // if backend already sends nice "dd/mm/yyyy" or "mm/dd/yyyy", just show it
+    if (
+      typeof raw === "string" &&
+      /^\d{2}[/-]\d{2}[/-]\d{4}$/.test(raw.trim())
+    ) {
+      return raw.trim();
+    }
+
+    const d = raw instanceof Date ? raw : new Date(raw);
     if (isNaN(d.getTime())) return "—";
-    return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(
-      d.getDate()
-    ).padStart(2, "0")}/${d.getFullYear()}`;
+
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
   };
 
   /* -----------------------------------------------------------
-     Build DataGrid rows
+     Build DataGrid rows (support more field names)
   ------------------------------------------------------------ */
   const rows = bookings.map((cur) => {
-    const vd =
-      cur.vehicleDetails ||
-      cur.vehicle ||
-      cur.car ||
-      {};
+    const vd = cur.vehicleDetails || cur.vehicle || cur.car || {};
 
     let rawImage = null;
-
     if (Array.isArray(vd.image) && vd.image.length) rawImage = vd.image[0];
-    else if (Array.isArray(vd.images) && vd.images.length) rawImage = vd.images[0];
+    else if (Array.isArray(vd.images) && vd.images.length)
+      rawImage = vd.images[0];
     else if (typeof vd.image === "string") rawImage = vd.image;
     else if (typeof vd.img === "string") rawImage = vd.img;
     else if (typeof vd.photo === "string") rawImage = vd.photo;
     else if (typeof cur.image === "string") rawImage = cur.image;
+
+    const pickupDateRaw =
+      cur.pickupDate ||
+      cur.pickUpDate ||
+      cur.pickup_date ||
+      cur.pick_up_date ||
+      cur.startDate ||
+      cur.fromDate ||
+      cur.start_date;
+
+    const dropoffDateRaw =
+      cur.dropOffDate || // camel-case variant
+      cur.dropoffDate ||
+      cur.dropoff_date || // snake_case
+      cur.drop_off_date || // alt snake_case
+      cur.endDate ||
+      cur.toDate ||
+      cur.end_date;
+
+    // 🔍 helps see what prod is sending (check Netlify console)
+    console.log("[BookingsTable] dropoff fields:", {
+      id: cur._id,
+      dropOffDate: cur.dropOffDate,
+      dropoffDate: cur.dropoffDate,
+      dropoff_date: cur.dropoff_date,
+      drop_off_date: cur.drop_off_date,
+      endDate: cur.endDate,
+      toDate: cur.toDate,
+      end_date: cur.end_date,
+    });
 
     return {
       id: cur._id,
@@ -130,23 +168,20 @@ const BookingsTable = () => {
       Pickup_Location:
         cur.pickUpLocation ||
         cur.pickupLocation ||
+        cur.pickup_location ||
         cur.fromLocation ||
         cur.from_location,
 
-      Pickup_Date:
-        cur.pickupDate ||
-        cur.startDate ||
-        cur.fromDate,
+      Pickup_Date: pickupDateRaw,
 
       Dropoff_Location:
         cur.dropOffLocation ||
         cur.dropoffLocation ||
-        cur.toLocation,
+        cur.dropoff_location ||
+        cur.toLocation ||
+        cur.to_location,
 
-      Dropoff_Date:
-        cur.dropoffDate ||
-        cur.endDate ||
-        cur.toDate,
+      Dropoff_Date: dropoffDateRaw,
 
       Vehicle_Status: cur.status,
       Change_Status: cur.status,
