@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import Box from "@mui/material/Box";
 
-// 🔥 use an existing backend route
+// ✅ use central API wrapper (src/api.js)
+import { api } from "../../../api";
+
+// backend route for vendors (employees)
 const EMPLOYEES_URL = "/api/admin/vendors";
 
 const Employees = () => {
@@ -14,22 +17,10 @@ const Employees = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch(EMPLOYEES_URL, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // ✅ send cookies for verifyToken + adminAuth
-      });
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.warn("[Employees] fetch failed:", res.status, txt);
-        setErrorMsg("Failed to load employees.");
-        setEmployees([]);
-        setLoading(false);
-        return;
-      }
+      // ✅ api.get uses correct base URL + attaches Authorization + credentials: "include"
+      const raw = await api.get(EMPLOYEES_URL);
 
-      const raw = await res.json().catch(() => null);
       console.log("[Employees] raw response:", raw);
 
       let list = [];
@@ -39,7 +30,7 @@ const Employees = () => {
       } else if (raw && typeof raw === "object") {
         if (Array.isArray(raw.data)) list = raw.data;
         else if (Array.isArray(raw.employees)) list = raw.employees;
-        else if (Array.isArray(raw.vendors)) list = raw.vendors;          // 👈 from backend
+        else if (Array.isArray(raw.vendors)) list = raw.vendors; // from backend
         else if (Array.isArray(raw.allEmployees)) list = raw.allEmployees;
         else {
           const firstArrayProp = Object.values(raw).find((v) =>
@@ -52,11 +43,11 @@ const Employees = () => {
       console.log("[Employees] parsed list:", list);
       setEmployees(list);
       setErrorMsg(null);
-      setLoading(false);
     } catch (err) {
       console.error("[Employees] fetch error:", err);
-      setErrorMsg("Error loading employees.");
+      setErrorMsg(err?.message || "Error loading employees.");
       setEmployees([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -141,7 +132,6 @@ const Employees = () => {
     },
   ];
 
-  // vendors → employees rows
   const rows = Array.isArray(employees)
     ? employees.map((emp) => ({
         id:
