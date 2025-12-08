@@ -1,5 +1,5 @@
 // src/components/RichTextEditor.jsx
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -9,25 +9,14 @@ import TextAlign from "@tiptap/extension-text-align";
 const RichTextEditor = ({ value, onChange }) => {
   const editor = useEditor({
     extensions: [
-      // StarterKit gives you basic nodes/marks like paragraph, bold, italic, etc.
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        // If in your project some global config also adds Link/Underline via StarterKit,
-        // you can safely disable them here:
-        // link: false,
-        // underline: false,
       }),
-
-      // Explicit underline mark
       Underline,
-
-      // Explicit link mark with custom behavior
       Link.configure({
         openOnClick: false,
         linkOnPaste: true,
       }),
-
-      // Text alignment
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
@@ -38,7 +27,6 @@ const RichTextEditor = ({ value, onChange }) => {
     },
   });
 
-  // Keep editor content in sync when `value` prop changes from outside
   useEffect(() => {
     if (!editor) return;
     const html = editor.getHTML();
