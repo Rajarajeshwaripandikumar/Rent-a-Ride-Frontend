@@ -1,7 +1,7 @@
 // src/pages/user/ResetPassword.jsx
 import { useEffect, useState } from "react";
 import styles from "../../index";
-import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import TextField from "@mui/material/TextField";
 import { Toaster, toast } from "sonner";
 
@@ -11,23 +11,15 @@ const API_BASE_URL =
     : import.meta.env.VITE_PRODUCTION_BACKEND_URL || "";
 
 export default function ResetPassword() {
-  const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
 
   const query = new URLSearchParams(location.search);
-  const tokenFromQuery = query.get("token");
-  const idFromQuery = query.get("id") || query.get("email");
-  const tokenFromParams = params.token;
-  const idFromParams = params.id;
+  const tokenFromQuery = query.get("token") || "";
+  const emailFromQuery = query.get("email") || "";
 
-  const initialToken = tokenFromParams || tokenFromQuery || "";
-  const initialId = idFromParams || idFromQuery || "";
-
-  const [token] = useState(initialToken);
-  const [id] = useState(initialId);
-
-  const [email, setEmail] = useState(query.get("email") || "");
+  const [token] = useState(tokenFromQuery);
+  const [email, setEmail] = useState(emailFromQuery);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,14 +28,13 @@ export default function ResetPassword() {
     console.log("ResetPassword mounted", {
       pathname: window.location.pathname,
       search: window.location.search,
-      token: initialToken,
-      id: initialId,
-      email: query.get("email"),
+      token: tokenFromQuery,
+      email: emailFromQuery,
     });
 
-    if (!token || !id) {
+    if (!token || !emailFromQuery) {
       toast.warning(
-        "Reset token or user id/email missing. Please open the reset link from your email."
+        "Reset token or email missing. Please open the reset link from your email."
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,8 +43,13 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!token || !id) {
-      toast.error("Missing reset token or user id. Use the link from your email.");
+    if (!token) {
+      toast.error("Missing reset token. Use the link from your email.");
+      return;
+    }
+
+    if (!emailFromQuery) {
+      toast.error("Missing email. Use the link from your email.");
       return;
     }
 
@@ -73,7 +69,8 @@ export default function ResetPassword() {
     try {
       setLoading(true);
 
-      const payload = { token, id, password };
+      // ✅ send email, NOT id
+      const payload = { token, email: emailFromQuery, password };
 
       const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: "POST",
@@ -85,11 +82,13 @@ export default function ResetPassword() {
       try {
         data = await res.json();
       } catch (err) {
-        // ignore
+        // ignore parse error
       }
 
       if (!res.ok) {
-        toast.error(data?.message || `Failed to reset password (${res.status})`);
+        toast.error(
+          data?.message || `Failed to reset password (${res.status})`
+        );
         return;
       }
 
@@ -111,11 +110,12 @@ export default function ResetPassword() {
       <Toaster />
       <div className="min-h-screen flex flex-col bg-[#F5F7FB]">
         <main className="flex-grow w-full px-4 sm:px-10 lg:px-20 xl:px-[120px] xl:pl-[100px] py-10 flex items-center justify-center">
-          {/* Wider card: max-w-lg */}
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-8 py-5 bg-[#EEF2FF] border-b border-gray-200">
-              <h1 className={`${styles.heading2} text-lg md:text-xl font-semibold text-gray-900`}>
+              <h1
+                className={`${styles.heading2} text-lg md:text-xl font-semibold text-gray-900`}
+              >
                 Reset Password
               </h1>
               <Link to="/">
@@ -128,7 +128,7 @@ export default function ResetPassword() {
               </Link>
             </div>
 
-            {/* Form (larger paddings) */}
+            {/* Form */}
             <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
               <div>
                 <TextField
@@ -140,6 +140,7 @@ export default function ResetPassword() {
                   onChange={(e) => setEmail(e.target.value)}
                   helperText="Optional — prefilled from your reset link"
                   InputProps={{ style: { padding: "12px 14px" } }}
+                  disabled // ✅ keep it from being changed
                 />
               </div>
 
@@ -170,7 +171,6 @@ export default function ResetPassword() {
                 />
               </div>
 
-              {/* Buttons: larger spacing */}
               <div className="flex justify-between items-center">
                 <button
                   type="button"
@@ -192,7 +192,10 @@ export default function ResetPassword() {
               <div className="pt-3">
                 <p className="text-[12px] text-center text-gray-500">
                   If the link looks invalid, request a new one{" "}
-                  <Link to="/forgot-password" className="text-blue-600 hover:underline">
+                  <Link
+                    to="/forgot-password"
+                    className="text-blue-600 hover:underline"
+                  >
                     here
                   </Link>
                   .
