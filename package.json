@@ -64,7 +64,7 @@
     "recharts": "^3.5.1",
     "redux-persist": "^6.0.0",
     "sonner": "^1.7.4",
-    "bootstrap": "^5.x.x",
+    "bootstrap": "^5.3.3",
     "tailwind-merge": "^2.3.0",
     "zod": "^3.22.4"
   },
